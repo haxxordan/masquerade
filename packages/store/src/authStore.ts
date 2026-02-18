@@ -1,6 +1,7 @@
-import { create } from 'zustand';
 import type { AuthResponse, Profile } from '@dating/types';
 import { setAuthToken } from '@dating/api-client';
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface AuthState {
   token: string | null;
@@ -12,18 +13,24 @@ interface AuthState {
   logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  token: null,
-  userId: null,
-  profile: null,
-  isAuthenticated: false,
-  setAuth: (auth) => {
-    setAuthToken(auth.token);
-    set({ token: auth.token, userId: auth.userId, isAuthenticated: true });
-  },
-  setProfile: (profile) => set({ profile }),
-  logout: () => {
-    setAuthToken(null);
-    set({ token: null, userId: null, profile: null, isAuthenticated: false });
-  },
-}));
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      token: null,
+      userId: null,
+      profile: null,
+      isAuthenticated: false,
+      setAuth: (auth) => {
+        setAuthToken(auth.token);
+        set({ token: auth.token, userId: auth.userId, isAuthenticated: true });
+      },
+      setProfile: (profile) => set({ profile }),
+      logout: () => {
+        setAuthToken(null);
+        set({ token: null, userId: null, profile: null, isAuthenticated: false });
+      },
+    }),
+    { name: 'masquerade-auth' } // localStorage key
+  )
+);
+
