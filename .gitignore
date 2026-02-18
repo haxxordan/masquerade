@@ -11,3 +11,4 @@ coverage/
 .idea/
 .vscode/
 .next/
+api/DatingApi/appsettings.Development.json

@@ -8,13 +8,24 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const auth = await authApi.register(form);
-    setAuth(auth);
-    router.push('/onboarding');
+    try {
+      const auth = await authApi.register(form);
+      setAuth(auth);
+      router.push('/onboarding');
+    } catch (err: any) {
+      const messages = err?.response?.data;
+      if (Array.isArray(messages)) {
+        setError(messages.join(', '));
+      } else {
+        setError('Registration failed. Please try again.');
+      }
+    }
   };
+
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -27,6 +38,7 @@ export default function RegisterPage() {
         <button className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold transition" type="submit">
           Create Account
         </button>
+        {error && <p className="text-red-400 text-sm">{error}</p>}
       </form>
     </div>
   );
