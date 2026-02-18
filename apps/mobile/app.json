@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "FurDate",
+    "slug": "furdate",
+    "version": "1.0.0",
+    "scheme": "furdate",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": { "backgroundColor": "#000000" },
+    "ios": { "supportsTablet": false, "bundleIdentifier": "com.yourname.furdate" },
+    "android": { "package": "com.yourname.furdate", "adaptiveIcon": { "backgroundColor": "#000000" } },
+    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}
