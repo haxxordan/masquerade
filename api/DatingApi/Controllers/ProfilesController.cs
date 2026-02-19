@@ -52,6 +52,19 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
     }
 
     [HttpPost("suggest")]
-    public async Task<List<ProfileDto>> Suggest(SuggestQuery query)
-        => await matching.SuggestAsync(UserId, query);
+    public async Task<List<ProfileDto>> Suggest(SuggestQuery query) => await matching.SuggestAsync(UserId, query);
+
+    [HttpGet("me")]
+    public async Task<ActionResult<ProfileDto>> GetMe()
+    {
+        var profile = await db.Profiles
+            .Include(p => p.Tags)
+            .FirstOrDefaultAsync(p => p.UserId == UserId);
+
+        if (profile == null)
+            return NotFound();
+
+        return MatchingService.MapToDto(profile);
+    }
+
 }

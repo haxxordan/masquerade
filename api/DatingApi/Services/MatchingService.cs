@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
@@ -56,12 +57,15 @@ public class MatchingService(AppDbContext db)
     MapToDto(p, [], []);
 
     public static ProfileDto MapToDto(Profile p, HashSet<string> likedUserIds, HashSet<string> matchedUserIds) => new(
-        p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType,
-        p.Tags.Where(t => t.Category == TagCategory.Music).Select(t => t.Value).ToList(),
-        p.Tags.Where(t => t.Category == TagCategory.Hobby).Select(t => t.Value).ToList(),
-        p.Faith, p.PoliticalLeaning, p.LayoutJson, p.CreatedAt,
-        matchedUserIds.Contains(p.UserId) ? LikeStatus.Matched :
-        likedUserIds.Contains(p.UserId) ? LikeStatus.Liked :
-        LikeStatus.None
-    );
+    p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType,
+    p.Tags.Where(t => t.Category == TagCategory.Music).Select(t => t.Value).ToList(),
+    p.Tags.Where(t => t.Category == TagCategory.Hobby).Select(t => t.Value).ToList(),
+    p.Faith, p.PoliticalLeaning,
+    JsonSerializer.Deserialize<ProfileLayoutDto>(p.LayoutJson) ?? new ProfileLayoutDto(),
+    p.CreatedAt,
+    matchedUserIds.Contains(p.UserId) ? LikeStatus.Matched :
+    likedUserIds.Contains(p.UserId) ? LikeStatus.Liked :
+    LikeStatus.None
+);
+
 }

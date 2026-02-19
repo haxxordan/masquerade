@@ -38,6 +38,17 @@ export interface CreateProfileRequest {
   layout: ProfileLayout;
 }
 
+export interface UpdateProfileRequest {
+  displayName?: string;
+  animalAvatarUrl?: string;
+  animalType?: string;
+  musicGenres?: string[];
+  hobbies?: string[];
+  faith?: string;
+  politicalLeaning?: string;
+  layout?: ProfileLayout;
+}
+
 export interface SuggestQuery {
   musicGenres?: string[];
   hobbies?: string[];
@@ -45,15 +56,4 @@ export interface SuggestQuery {
   politicalLeaning?: string;
   page?: number;
   pageSize?: number;
-}
-
-// Add this helper at the bottom of profile.ts
-export function parseLayout(profile: Profile): ProfileLayout {
-  try {
-    return typeof profile.layout === 'string'
-      ? JSON.parse(profile.layout as unknown as string)
-      : profile.layout;
-  } catch {
-    return { theme: 'dark', accentColor: '#ff6699', widgets: [] };
-  }
 }

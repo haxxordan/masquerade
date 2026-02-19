@@ -1,12 +1,12 @@
 import { profilesApi, createApiClient } from '@dating/api-client';
-import { parseLayout, type ProfileLayout } from '@dating/types';
+import { type ProfileLayout } from '@dating/types';
 import Image from 'next/image';
 
 createApiClient(process.env.NEXT_PUBLIC_API_URL!);
 
 export default async function ProfilePage({ params }: { params: { id: string } }) {
   const profile = await profilesApi.get(params.id);
-  const layout = parseLayout(profile);
+  const layout = profile.layout;
 
   const themeClasses: Record<string, string> = {
     dark: 'bg-black text-white',
