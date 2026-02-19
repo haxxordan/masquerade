@@ -1,5 +1,7 @@
 namespace DatingApi.Domain;
 
+public enum LikeStatus { None, Liked, Matched }
+
 public class Like
 {
     public string LikerId { get; set; } = string.Empty;

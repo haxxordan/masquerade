@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.Hubs;
@@ -11,7 +12,8 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

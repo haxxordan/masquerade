@@ -24,6 +24,7 @@ export interface Profile {
   politicalLeaning: string | null;
   layout: ProfileLayout;
   createdAt: string;
+  likeStatus: 'None' | 'Liked' | 'Matched';
 }
 
 export interface CreateProfileRequest {

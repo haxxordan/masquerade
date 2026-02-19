@@ -14,7 +14,6 @@ public class MatchingService(AppDbContext db)
             .Include(p => p.Tags)
             .Where(p => p.UserId != requestingUserId);
 
-        // Hard filters: faith / politics only applied if caller specified them
         if (!string.IsNullOrWhiteSpace(query.Faith))
             baseQuery = baseQuery.Where(p => p.Faith == query.Faith);
         if (!string.IsNullOrWhiteSpace(query.PoliticalLeaning))
@@ -22,7 +21,17 @@ public class MatchingService(AppDbContext db)
 
         var profiles = await baseQuery.ToListAsync();
 
-        // Score by tag overlap (in memory for MVP; optimize later)
+        // Pre-fetch in one query each — avoids N+1
+        var likedUserIds = await db.Likes
+            .Where(l => l.LikerId == requestingUserId)
+            .Select(l => l.LikeeId)
+            .ToHashSetAsync();
+
+        var matchedUserIds = await db.Matches
+            .Where(m => m.User1Id == requestingUserId || m.User2Id == requestingUserId)
+            .Select(m => m.User1Id == requestingUserId ? m.User2Id : m.User1Id)
+            .ToHashSetAsync();
+
         var desiredMusic = query.MusicGenres ?? [];
         var desiredHobbies = query.Hobbies ?? [];
 
@@ -36,16 +45,23 @@ public class MatchingService(AppDbContext db)
             .OrderByDescending(x => x.Score)
             .Skip(query.Page * query.PageSize)
             .Take(query.PageSize)
-            .Select(x => MapToDto(x.Profile))
+            .Select(x => MapToDto(x.Profile, likedUserIds, matchedUserIds))
             .ToList();
 
         return scored;
     }
 
-    public static ProfileDto MapToDto(Profile p) => new(
+
+    public static ProfileDto MapToDto(Profile p) =>
+    MapToDto(p, [], []);
+
+    public static ProfileDto MapToDto(Profile p, HashSet<string> likedUserIds, HashSet<string> matchedUserIds) => new(
         p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType,
         p.Tags.Where(t => t.Category == TagCategory.Music).Select(t => t.Value).ToList(),
         p.Tags.Where(t => t.Category == TagCategory.Hobby).Select(t => t.Value).ToList(),
-        p.Faith, p.PoliticalLeaning, p.LayoutJson, p.CreatedAt
+        p.Faith, p.PoliticalLeaning, p.LayoutJson, p.CreatedAt,
+        matchedUserIds.Contains(p.UserId) ? LikeStatus.Matched :
+        likedUserIds.Contains(p.UserId) ? LikeStatus.Liked :
+        LikeStatus.None
     );
 }

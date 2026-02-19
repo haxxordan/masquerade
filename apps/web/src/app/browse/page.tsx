@@ -11,7 +11,19 @@ export default function BrowsePage() {
   const [matchedIds, setMatchedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    profilesApi.suggest({}).then(setProfiles);
+    profilesApi.suggest({}).then(data => {
+      setProfiles(data);
+      setLikedIds(new Set(
+        data
+          .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
+          .map(p => p.id)
+      ));
+      setMatchedIds(new Set(
+        data
+          .filter(p => p.likeStatus === 'Matched')
+          .map(p => p.id)
+      ));
+    });
   }, []);
 
   const handleLike = async (profileId: string) => {
@@ -19,6 +31,7 @@ export default function BrowsePage() {
     setLikedIds(prev => new Set([...prev, profileId]));
     if (result.matched) setMatchedIds(prev => new Set([...prev, profileId]));
   };
+
 
   return (
     <div className="p-6 max-w-4xl mx-auto">

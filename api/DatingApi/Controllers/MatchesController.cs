@@ -20,27 +20,37 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
     [HttpPost("like/{likeeId}")]
     public async Task<ActionResult<LikeResponse>> Like(string likeeId)
     {
-        var existing = await db.Likes.FindAsync(UserId, likeeId);
-        if (existing != null) return BadRequest("Already liked.");
+        // likeeId coming in is a Profile.Id — resolve it to a UserId
+        var likeeProfile = await db.Profiles.FirstOrDefaultAsync(p => p.Id == likeeId);
+        if (likeeProfile == null)
+            return NotFound("Profile not found.");
 
-        db.Likes.Add(new Like { LikerId = UserId, LikeeId = likeeId });
+        var likeeUserId = likeeProfile.UserId; // now it's the same type as LikerId
 
-        // Check mutual like → create match
-        var mutual = await db.Likes.AnyAsync(l => l.LikerId == likeeId && l.LikeeId == UserId);
+        var existing = await db.Likes
+            .FirstOrDefaultAsync(l => l.LikerId == UserId && l.LikeeId == likeeUserId);
+        if (existing != null)
+            return BadRequest("Already liked.");
+
+        db.Likes.Add(new Like { LikerId = UserId, LikeeId = likeeUserId });
+        await db.SaveChangesAsync();
+
+        var mutual = await db.Likes
+            .AnyAsync(l => l.LikerId == likeeUserId && l.LikeeId == UserId);
+
         Match? match = null;
-
         if (mutual)
         {
-            match = new Match { User1Id = UserId, User2Id = likeeId, Status = MatchStatus.Matched };
+            match = new Match { User1Id = UserId, User2Id = likeeUserId, Status = MatchStatus.Matched };
             db.Matches.Add(match);
-            // Notify both users via SignalR
+            await db.SaveChangesAsync();
             await hub.Clients.User(UserId).SendAsync("NewMatch", match.Id);
-            await hub.Clients.User(likeeId).SendAsync("NewMatch", match.Id);
+            await hub.Clients.User(likeeUserId).SendAsync("NewMatch", match.Id);
         }
 
-        await db.SaveChangesAsync();
         return new LikeResponse(mutual, match?.Id);
     }
+
 
     [HttpGet]
     public async Task<List<MatchDto>> GetMatches()

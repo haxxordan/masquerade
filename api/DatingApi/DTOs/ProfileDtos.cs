@@ -1,3 +1,5 @@
+using DatingApi.Domain;
+
 namespace DatingApi.DTOs;
 
 public record CreateProfileRequest(
@@ -22,7 +24,8 @@ public record ProfileDto(
     string? Faith,
     string? PoliticalLeaning,
     string LayoutJson,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    LikeStatus LikeStatus = LikeStatus.None
 );
 
 public record SuggestQuery(
