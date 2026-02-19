@@ -45,3 +45,14 @@ export interface SuggestQuery {
   page?: number;
   pageSize?: number;
 }
+
+// Add this helper at the bottom of profile.ts
+export function parseLayout(profile: Profile): ProfileLayout {
+  try {
+    return typeof profile.layout === 'string'
+      ? JSON.parse(profile.layout as unknown as string)
+      : profile.layout;
+  } catch {
+    return { theme: 'dark', accentColor: '#ff6699', widgets: [] };
+  }
+}

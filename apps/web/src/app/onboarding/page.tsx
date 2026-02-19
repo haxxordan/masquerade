@@ -34,15 +34,25 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = async () => {
+  try {
     const profile = await profilesApi.create({
-      displayName, animalType, animalAvatarUrl,
-      musicGenres: selectedMusic, hobbies: selectedHobbies,
-      faith: faith || undefined, politicalLeaning: political || undefined,
-      layout: defaultLayout,
+      displayName,
+      animalType,
+      animalAvatarUrl,
+      musicGenres: selectedMusic,
+      hobbies: selectedHobbies,
+      faith: faith || undefined,
+      politicalLeaning: political || undefined,
+      layout: defaultLayout,  // profilesApi will handle serialization
     });
     setProfile(profile);
     router.push('/browse');
-  };
+  } catch (err: any) {
+    console.error('Profile creation failed:', err.response?.data);
+    alert(err.response?.data?.join('\n') ?? 'Failed to create profile');
+  }
+};
+
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
