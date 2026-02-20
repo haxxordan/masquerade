@@ -7,7 +7,7 @@ export interface ProfileWidget {
 }
 
 export interface ProfileLayout {
-  theme: 'dark' | 'retro' | 'ocean' | 'forest';
+  theme: 'riot' | 'jupiter' | 'ocean' | 'sparrow';
   accentColor: string;
   widgets: ProfileWidget[];
 }

@@ -90,22 +90,22 @@ export default function MyProfilePage() {
     };
 
     const handleSave = async () => {
-    if (!profile || !layout) return;
-    setSaving(true);
-    await profilesApi.update({
-        displayName: profile.displayName,
-        animalAvatarUrl: profile.animalAvatarUrl,
-        animalType: profile.animalType,
-        musicGenres: profile.musicGenres,
-        hobbies: profile.hobbies,
-        faith: profile.faith ?? undefined,
-        politicalLeaning: profile.politicalLeaning ?? undefined,
-        layout,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-};
+        if (!profile || !layout) return;
+        setSaving(true);
+        await profilesApi.update({
+            displayName: profile.displayName,
+            animalAvatarUrl: profile.animalAvatarUrl,
+            animalType: profile.animalType,
+            musicGenres: profile.musicGenres,
+            hobbies: profile.hobbies,
+            faith: profile.faith ?? undefined,
+            politicalLeaning: profile.politicalLeaning ?? undefined,
+            layout,
+        });
+        setSaving(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+    };
 
     if (!profile || !layout) return <div className="p-8 text-white">Loading...</div>;
 
