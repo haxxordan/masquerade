@@ -1,5 +1,5 @@
 import { getClient } from './client';
-import type { Like, Match, Message } from '@dating/types';
+import type { Match, Message } from '@dating/types';
 
 export const matchesApi = {
   like: (likeeId: string) =>

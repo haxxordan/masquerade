@@ -7,6 +7,7 @@ import { Lobster } from 'next/font/google';
 import { useAuthStore } from '@dating/store';
 import { useSignalR } from '@/hooks/useSignalR';
 import { Toaster } from 'sonner';
+import { useMatchStore } from '@dating/store';
 
 function SignalRProvider() {
     useSignalR();
@@ -36,6 +37,9 @@ function NavDropdown() {
         logout();
         router.push('/login');
     };
+
+    const { unreadMatchIds } = useMatchStore();
+    const hasUnread = unreadMatchIds.size > 0;
 
     return (
         <div ref={ref} className="relative">
@@ -82,7 +86,15 @@ function NavDropdown() {
                         onClick={() => setOpen(false)}
                         className="block px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition"
                     >
-                        💖 matches
+                        <span className="flex items-center gap-2">
+                            <span>💖 matches</span>
+                            {hasUnread && (
+                                <span
+                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    style={{ backgroundColor: '#ff6699' }}
+                                />
+                            )}
+                        </span>
                     </Link>
                     <button
                         onClick={handleLogout}

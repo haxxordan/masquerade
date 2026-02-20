@@ -18,9 +18,7 @@ import Image from 'next/image';
 import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
 import { WidgetPanel, TOP8_PLACEHOLDERS } from '@/components/profile';
 
-
 const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
-
 
 const themeClasses: Record<string, string> = {
     riot: 'bg-black text-white',
@@ -36,7 +34,6 @@ const DEFAULT_WIDGETS: ProfileWidget[] = [
     { id: 'w-top8', type: 'top8', title: 'Top 8', content: '', order: 3 },
     { id: 'w-blog', type: 'blog', title: 'Blog', content: '', order: 4 },
 ];
-
 
 // ─── View-mode widget renderers ───────────────────────────────────────────────
 

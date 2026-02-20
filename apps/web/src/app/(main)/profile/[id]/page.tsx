@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { profilesApi, matchesApi } from '@dating/api-client';
 import type { Profile } from '@dating/types';
-import { WidgetPanel, TOP8_PLACEHOLDERS } from '@/components/profile';
+import { WidgetPanel } from '@/components/profile';
 
 // ─── Constants (same as my-profile) ──────────────────────────────────────────
 
