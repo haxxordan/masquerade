@@ -8,6 +8,7 @@ import { useMatchStore } from '@dating/store';
 import { useAuthStore } from '@dating/store';
 import type { Match, Message } from '@dating/types';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
@@ -78,6 +79,17 @@ export default function MatchesPage() {
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+
+    const searchParams = useSearchParams();
+
+    // Auto-select match from query param
+    useEffect(() => {
+        const matchIdParam = searchParams.get('matchId');
+        if (matchIdParam && matches.length > 0) {
+            setActiveMatch(matchIdParam);
+            markRead(matchIdParam);
+        }
+    }, [matches]); // run when matches load
 
     // Load matches on mount
     useEffect(() => {

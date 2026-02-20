@@ -211,13 +211,30 @@ export default function ProfilePage() {
           </div>
 
           {/* ── Like button ── */}
-          <button
-            onClick={() => liked ? setModalOpen(true) : handleLike()}
-            className={`px-6 py-2 rounded-full font-bold text-sm transition ${liked ? 'bg-gray-700 text-gray-500 hover:bg-red-900/50 hover:text-red-400' : 'bg-pink-500 hover:bg-pink-600 text-white'
-              }`}
-          >
-            {matched ? '💖 Matched!' : liked ? '♥ Liked' : '♥ Like'}
-          </button>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => liked ? setModalOpen(true) : handleLike()}
+              className={`px-6 py-2 rounded-full font-bold text-sm transition ${liked ? 'bg-gray-700 text-gray-500 hover:bg-red-900/50 hover:text-red-400' : 'bg-pink-500 hover:bg-pink-600 text-white'
+                }`}
+            >
+              {matched ? '💖 Matched!' : liked ? '♥ Liked' : '♥ Like'}
+            </button>
+
+            {matched && (() => {
+              const match = matches.find(m =>
+                m.user1Id === profile.userId || m.user2Id === profile.userId
+              );
+              return match ? (
+                <Link
+                  href={`/matches?matchId=${match.id}`}
+                  className="px-6 py-2 rounded-full text-sm font-bold border border-[#ff6699] text-[#ff6699] hover:bg-[#ff6699] hover:text-black transition"
+                >
+                  💬 messages
+                </Link>
+              ) : null;
+            })()}
+          </div>
+
         </div>
 
         {/* ── Widgets ── */}
