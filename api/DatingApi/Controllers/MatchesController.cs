@@ -3,6 +3,7 @@ using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
 using DatingApi.Hubs;
+using DatingApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -53,13 +54,36 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
 
 
     [HttpGet]
-    public async Task<List<MatchDto>> GetMatches()
+    public async Task<ActionResult<List<MatchDto>>> GetMatches()
     {
-        return await db.Matches
+        var matches = await db.Matches
             .Where(m => m.Status == MatchStatus.Matched && (m.User1Id == UserId || m.User2Id == UserId))
-            .Select(m => new MatchDto(m.Id, m.User1Id, m.User2Id, m.Status.ToString(), m.CreatedAt))
             .ToListAsync();
+
+        var otherUserIds = matches
+            .Select(m => m.User1Id == UserId ? m.User2Id : m.User1Id)
+            .ToHashSet();
+
+        var otherProfiles = await db.Profiles
+            .Include(p => p.Tags)
+            .Where(p => otherUserIds.Contains(p.UserId))
+            .ToDictionaryAsync(p => p.UserId);
+
+        return matches.Select(m =>
+        {
+            var otherUserId = m.User1Id == UserId ? m.User2Id : m.User1Id;
+            var otherProfile = otherProfiles.GetValueOrDefault(otherUserId);
+            return new MatchDto(
+                m.Id,
+                m.User1Id,
+                m.User2Id,
+                m.Status.ToString(),
+                m.CreatedAt,
+                otherProfile != null ? MatchingService.MapToDto(otherProfile) : null
+            );
+        }).ToList();
     }
+
 
     [HttpGet("{matchId}/messages")]
     public async Task<ActionResult<List<MessageDto>>> GetMessages(string matchId)

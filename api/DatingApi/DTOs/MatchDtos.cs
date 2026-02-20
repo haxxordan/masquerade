@@ -7,7 +7,8 @@ public record MatchDto(
     string User1Id,
     string User2Id,
     string Status,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    ProfileDto? OtherProfile = null
 );
 
 public record MessageDto(string Id, string MatchId, string SenderId, string Content, DateTime SentAt);

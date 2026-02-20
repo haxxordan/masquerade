@@ -70,6 +70,13 @@ function NavDropdown() {
                     >
                         browse
                     </Link>
+                    <Link
+                        href="/matches"
+                        onClick={() => setOpen(false)}
+                        className="block px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition"
+                    >
+                        💖 matches
+                    </Link>
                     <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-sm text-red-400/70 hover:text-red-400 hover:bg-white/5 transition border-t border-white/10"
