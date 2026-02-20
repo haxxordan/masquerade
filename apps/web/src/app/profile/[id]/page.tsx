@@ -1,57 +1,248 @@
-import { profilesApi, createApiClient } from '@dating/api-client';
-import { type ProfileLayout } from '@dating/types';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
+import { profilesApi, matchesApi } from '@dating/api-client';
+import type { Profile } from '@dating/types';
 
-createApiClient(process.env.NEXT_PUBLIC_API_URL!);
+// ─── Constants (same as my-profile) ──────────────────────────────────────────
 
-export default async function ProfilePage({ params }: { params: { id: string } }) {
-  const profile = await profilesApi.get(params.id);
+const themeClasses: Record<string, string> = {
+  riot: 'bg-black text-white',
+  jupiter: 'bg-[#000033] text-[#ff99ff]',
+  ocean: 'bg-[#001133] text-[#99ccff]',
+  sparrow: 'bg-[#0a1a0a] text-[#99ff99]',
+};
+
+// ─── Widget Panel (same shell as my-profile) ─────────────────────────────────
+
+function WidgetPanel({
+  title,
+  accentColor,
+  children,
+}: {
+  title: string;
+  accentColor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded border mb-4 overflow-hidden" style={{ borderColor: accentColor }}>
+      <div
+        className="px-3 py-1 text-sm font-bold uppercase tracking-widest text-black"
+        style={{ backgroundColor: accentColor }}
+      >
+        {title}
+      </div>
+      <div className="p-3 text-sm">{children}</div>
+    </div>
+  );
+}
+
+// ─── Read-only widget renderers ───────────────────────────────────────────────
+
+function ProfileWidget({
+  widget,
+  profile,
+  accentColor,
+}: {
+  widget: Profile['layout']['widgets'][number];
+  profile: Profile;
+  accentColor: string;
+}) {
+  const pill = (label: string, prefix = '') => (
+    <span
+      key={label}
+      className="px-2 py-0.5 rounded-full text-xs border"
+      style={{ borderColor: accentColor, color: accentColor }}
+    >
+      {prefix}{label}
+    </span>
+  );
+
+  switch (widget.type) {
+    case 'about':
+      return (
+        <WidgetPanel title={widget.title || 'About Me'} accentColor={accentColor}>
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {widget.content || <span className="opacity-40 italic">Nothing here yet...</span>}
+          </p>
+        </WidgetPanel>
+      );
+
+    case 'music':
+      return (
+        <WidgetPanel title={widget.title || 'Music'} accentColor={accentColor}>
+          {profile.musicGenres.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {profile.musicGenres.map(g => pill(g, '🎵 '))}
+            </div>
+          )}
+          {widget.content && (
+            <p className="whitespace-pre-wrap leading-relaxed opacity-80">{widget.content}</p>
+          )}
+        </WidgetPanel>
+      );
+
+    case 'hobbies':
+      return (
+        <WidgetPanel title={widget.title || 'Hobbies & Interests'} accentColor={accentColor}>
+          {profile.hobbies.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {profile.hobbies.map(h => pill(h))}
+            </div>
+          )}
+          {widget.content && (
+            <p className="whitespace-pre-wrap leading-relaxed opacity-80">{widget.content}</p>
+          )}
+        </WidgetPanel>
+      );
+
+    case 'top8':
+      return (
+        <WidgetPanel title={widget.title || 'Top 8'} accentColor={accentColor}>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { name: 'Luna', animal: 'Snow Leopard', emoji: '🐆' },
+              { name: 'Cosmo', animal: 'Red Panda', emoji: '🦊' },
+              { name: 'Ripple', animal: 'Axolotl', emoji: '🦎' },
+              { name: 'Dusk', animal: 'Fennec Fox', emoji: '🦊' },
+              { name: 'Orbit', animal: 'Capybara', emoji: '🐾' },
+              { name: 'Fable', animal: 'Quokka', emoji: '🦘' },
+              { name: 'Zephyr', animal: 'Clouded Leopard', emoji: '🐱' },
+              { name: 'Mochi', animal: 'Pygmy Slow Loris', emoji: '🐒' },
+            ].map(p => (
+              <div key={p.name} className="flex flex-col items-center text-center gap-1">
+                <div
+                  className="w-12 h-12 rounded flex items-center justify-center text-2xl border"
+                  style={{ borderColor: accentColor }}
+                >
+                  {p.emoji}
+                </div>
+                <span className="text-xs font-semibold">{p.name}</span>
+                <span className="text-[10px] opacity-50">{p.animal}</span>
+              </div>
+            ))}
+          </div>
+        </WidgetPanel>
+      );
+
+    case 'blog':
+      return (
+        <WidgetPanel title={widget.title || 'Blog'} accentColor={accentColor}>
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {widget.content || <span className="opacity-40 italic">No entries yet...</span>}
+          </p>
+        </WidgetPanel>
+      );
+
+    default:
+      return null;
+  }
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+
+export default function ProfilePage() {
+  const { id } = useParams<{ id: string }>();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [liked, setLiked] = useState(false);
+  const [matched, setMatched] = useState(false);
+
+  useEffect(() => {
+    profilesApi.get(id).then(p => {
+      console.log('likeStatus:', p.likeStatus);
+      console.log('liked will be:', p.likeStatus === 'Liked');
+      console.log('matched will be:', p.likeStatus === 'Matched');
+      setProfile(p);
+      setLiked(p.likeStatus === 'Liked' || p.likeStatus === 'Matched');
+      setMatched(p.likeStatus === 'Matched');
+    }).catch(err => console.error('Failed to load profile:', err));
+  }, [id]);
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black text-white opacity-50">
+        Loading...
+      </div>
+    );
+  }
+
   const layout = profile.layout;
+  const themeClass = themeClasses[layout.theme] ?? themeClasses.riot;
+  const sortedWidgets = [...layout.widgets].sort((a, b) => a.order - b.order);
 
-  const themeClasses: Record<string, string> = {
-    dark: 'bg-black text-white',
-    retro: 'bg-[#000033] text-[#ff99ff]',
-    ocean: 'bg-[#001133] text-[#99ccff]',
-    forest: 'bg-[#0a1a0a] text-[#99ff99]',
+  const handleLike = async () => {
+    const result = await matchesApi.like(profile.id);
+    setLiked(true);
+    if (result.matched) setMatched(true);
   };
 
   return (
-    <div className={`min-h-screen p-6 ${themeClasses[layout.theme] ?? themeClasses.dark}`}>
-      <div className="max-w-2xl mx-auto">
-        {/* Animal avatar hero */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="relative w-40 h-40 rounded-full overflow-hidden border-4 mb-4"
-            style={{ borderColor: layout.accentColor }}>
-            {profile.animalAvatarUrl
-              ? <Image src={profile.animalAvatarUrl} alt={profile.animalType} fill className="object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-6xl bg-gray-900">🐾</div>}
+    <div className={`min-h-screen ${themeClass} font-mono`}>
+      <div className="max-w-2xl mx-auto px-4 py-8">
+
+        {/* ── Back link ── */}
+        <Link
+          href="/browse"
+          className="text-xs opacity-40 hover:opacity-80 transition mb-6 inline-block"
+          style={{ color: layout.accentColor }}
+        >
+          ← back to browse
+        </Link>
+
+        {/* ── Avatar & identity ── */}
+        <div className="flex items-center gap-5 mb-8">
+          <div
+            className="w-20 h-20 rounded border-2 overflow-hidden flex items-center justify-center text-4xl flex-shrink-0"
+            style={{ borderColor: layout.accentColor }}
+          >
+            {profile.animalAvatarUrl ? (
+              <Image
+                src={profile.animalAvatarUrl}
+                alt={profile.displayName}
+                width={80}
+                height={80}
+                className="object-cover w-full h-full"
+              />
+            ) : '🐾'}
           </div>
-          <h1 className="text-3xl font-bold">{profile.displayName}</h1>
-          <p className="opacity-60">{profile.animalType}</p>
+          <div className="flex-1">
+            <div className="text-2xl font-bold">{profile.displayName}</div>
+            <div className="text-sm opacity-60 capitalize">{profile.animalType}</div>
+            {profile.faith && <div className="text-xs opacity-40 mt-0.5">{profile.faith}</div>}
+            {profile.politicalLeaning && <div className="text-xs opacity-40">{profile.politicalLeaning}</div>}
+          </div>
+
+          {/* ── Like button ── */}
+          <button
+            onClick={handleLike}
+            disabled={liked}
+            className={`px-5 py-2 rounded-full font-bold text-sm transition flex-shrink-0 border ${liked
+                ? 'bg-transparent opacity-50'
+                : 'border-transparent'
+              }`}
+            style={
+              liked
+                ? { borderColor: layout.accentColor, color: layout.accentColor }
+                : { backgroundColor: layout.accentColor, color: '#000' }
+            }
+          >
+            {matched ? '💖 Matched!' : liked ? '♥ Liked' : '♥ Like'}
+          </button>
         </div>
 
-        {/* Tags row */}
-        <div className="flex flex-wrap gap-2 justify-center mb-8">
-          {profile.musicGenres.map(g => (
-            <span key={g} className="px-3 py-1 rounded-full text-sm font-semibold border"
-              style={{ borderColor: layout.accentColor, color: layout.accentColor }}>
-              🎵 {g}
-            </span>
-          ))}
-          {profile.hobbies.map(h => (
-            <span key={h} className="px-3 py-1 rounded-full text-sm font-semibold border border-purple-500 text-purple-400">
-              {h}
-            </span>
-          ))}
-        </div>
-
-        {/* Widgets (Myspace-style layout blocks) */}
-        {layout.widgets.sort((a, b) => a.order - b.order).map(widget => (
-          <div key={widget.id} className="bg-white/5 rounded-xl p-4 mb-4 border border-white/10">
-            <h2 className="font-bold mb-2" style={{ color: layout.accentColor }}>{widget.title}</h2>
-            <p className="opacity-80 whitespace-pre-wrap">{widget.content || 'Nothing here yet...'}</p>
-          </div>
+        {/* ── Widgets ── */}
+        {sortedWidgets.map(widget => (
+          <ProfileWidget
+            key={widget.id}
+            widget={widget}
+            profile={profile}
+            accentColor={layout.accentColor}
+          />
         ))}
+
       </div>
     </div>
   );

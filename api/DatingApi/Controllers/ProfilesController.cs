@@ -23,8 +23,25 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
     {
         var profile = await db.Profiles.Include(p => p.Tags).FirstOrDefaultAsync(p => p.Id == id);
         if (profile == null) return NotFound();
-        return MatchingService.MapToDto(profile);
+
+        // Only resolve like status if the request is authenticated
+        var requestingUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (requestingUserId == null)
+            return MatchingService.MapToDto(profile);
+
+        var likedUserIds = await db.Likes
+            .Where(l => l.LikerId == requestingUserId)
+            .Select(l => l.LikeeId)
+            .ToHashSetAsync();
+
+        var matchedUserIds = await db.Matches
+            .Where(m => m.User1Id == requestingUserId || m.User2Id == requestingUserId)
+            .Select(m => m.User1Id == requestingUserId ? m.User2Id : m.User1Id)
+            .ToHashSetAsync();
+
+        return MatchingService.MapToDto(profile, likedUserIds, matchedUserIds);
     }
+
 
     [HttpPost]
     public async Task<ActionResult<ProfileDto>> Create(CreateProfileRequest request)

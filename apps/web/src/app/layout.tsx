@@ -3,7 +3,7 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'Masquerade — Find your match',
+  title: 'masquerade — Find your match',
   description: 'Dating app where your spirit animal speaks for you',
 };
 
