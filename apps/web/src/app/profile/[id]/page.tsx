@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { profilesApi, matchesApi } from '@dating/api-client';
 import type { Profile } from '@dating/types';
+import { WidgetPanel, TOP8_PLACEHOLDERS } from '@/components/profile';
 
 // ─── Constants (same as my-profile) ──────────────────────────────────────────
 
@@ -15,30 +16,6 @@ const themeClasses: Record<string, string> = {
   ocean: 'bg-[#001133] text-[#99ccff]',
   sparrow: 'bg-[#0a1a0a] text-[#99ff99]',
 };
-
-// ─── Widget Panel (same shell as my-profile) ─────────────────────────────────
-
-function WidgetPanel({
-  title,
-  accentColor,
-  children,
-}: {
-  title: string;
-  accentColor: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded border mb-4 overflow-hidden" style={{ borderColor: accentColor }}>
-      <div
-        className="px-3 py-1 text-sm font-bold uppercase tracking-widest text-black"
-        style={{ backgroundColor: accentColor }}
-      >
-        {title}
-      </div>
-      <div className="p-3 text-sm">{children}</div>
-    </div>
-  );
-}
 
 // ─── Read-only widget renderers ───────────────────────────────────────────────
 

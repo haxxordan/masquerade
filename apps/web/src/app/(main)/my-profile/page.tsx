@@ -16,6 +16,8 @@ import Image from 'next/image';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
+import { WidgetPanel, TOP8_PLACEHOLDERS } from '@/components/profile';
+
 
 const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
 
@@ -27,17 +29,6 @@ const themeClasses: Record<string, string> = {
     sparrow: 'bg-[#0a1a0a] text-[#99ff99]',
 };
 
-const TOP8_PLACEHOLDERS = [
-    { name: 'Luna', animal: 'Snow Leopard', emoji: '🐆' },
-    { name: 'Cosmo', animal: 'Red Panda', emoji: '🦊' },
-    { name: 'Ripple', animal: 'Axolotl', emoji: '🦎' },
-    { name: 'Dusk', animal: 'Fennec Fox', emoji: '🦊' },
-    { name: 'Orbit', animal: 'Capybara', emoji: '🐾' },
-    { name: 'Fable', animal: 'Quokka', emoji: '🦘' },
-    { name: 'Zephyr', animal: 'Clouded Leopard', emoji: '🐱' },
-    { name: 'Mochi', animal: 'Pygmy Slow Loris', emoji: '🐒' },
-];
-
 const DEFAULT_WIDGETS: ProfileWidget[] = [
     { id: 'w-about', type: 'about', title: 'About Me', content: '', order: 0 },
     { id: 'w-music', type: 'music', title: 'Music', content: '', order: 1 },
@@ -46,32 +37,6 @@ const DEFAULT_WIDGETS: ProfileWidget[] = [
     { id: 'w-blog', type: 'blog', title: 'Blog', content: '', order: 4 },
 ];
 
-// ─── Widget Panel (shared shell) ─────────────────────────────────────────────
-
-function WidgetPanel({
-    title,
-    accentColor,
-    children,
-}: {
-    title: string;
-    accentColor: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <div
-            className="rounded border mb-4 overflow-hidden"
-            style={{ borderColor: accentColor }}
-        >
-            <div
-                className="px-3 py-1 text-sm font-bold uppercase tracking-widest text-black"
-                style={{ backgroundColor: accentColor }}
-            >
-                {title}
-            </div>
-            <div className="p-3 text-sm">{children}</div>
-        </div>
-    );
-}
 
 // ─── View-mode widget renderers ───────────────────────────────────────────────
 
