@@ -52,6 +52,33 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
         return new LikeResponse(mutual, match?.Id);
     }
 
+    [HttpDelete("like/{likeeId}")]
+    public async Task<ActionResult> Unlike(string likeeId)
+    {
+        var profile = await db.Profiles.FirstOrDefaultAsync(p => p.Id == likeeId);
+        if (profile == null) return NotFound("Profile not found.");
+
+        var likeeUserId = profile.UserId;
+
+        var like = await db.Likes.FirstOrDefaultAsync(l => l.LikerId == UserId && l.LikeeId == likeeUserId);
+        if (like != null) db.Likes.Remove(like);
+
+        // Remove match + messages if one existed
+        var match = await db.Matches
+            .Include(m => m.Messages)
+            .FirstOrDefaultAsync(m =>
+                (m.User1Id == UserId && m.User2Id == likeeUserId) ||
+                (m.User1Id == likeeUserId && m.User2Id == UserId));
+
+        if (match != null)
+        {
+            db.Messages.RemoveRange(match.Messages);
+            db.Matches.Remove(match);
+        }
+
+        await db.SaveChangesAsync();
+        return NoContent();
+    }
 
     [HttpGet]
     public async Task<ActionResult<List<MatchDto>>> GetMatches()

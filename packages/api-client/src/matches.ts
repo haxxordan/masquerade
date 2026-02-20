@@ -4,6 +4,8 @@ import type { Match, Message } from '@dating/types';
 export const matchesApi = {
   like: (likeeId: string) =>
     getClient().post<{ matched: boolean; match?: Match }>(`/api/matches/like/${likeeId}`).then(r => r.data),
+  unlike: (profileId: string) =>
+    getClient().delete(`/api/matches/like/${profileId}`).then(r => r.data),
   getMatches: () =>
     getClient().get<Match[]>('/api/matches').then(r => r.data),
   getMessages: (matchId: string) =>

@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { profilesApi, matchesApi } from '@dating/api-client';
 import type { Profile } from '@dating/types';
 import { WidgetPanel } from '@/components/profile';
+import { UnlikeModal } from '@/components/UnlikeModal';
+import { useMatchStore } from '@dating/store';
 
 // ─── Constants (same as my-profile) ──────────────────────────────────────────
 
@@ -126,6 +128,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [liked, setLiked] = useState(false);
   const [matched, setMatched] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const { matches, removeMatch } = useMatchStore();
 
   useEffect(() => {
     profilesApi.get(id).then(p => {
@@ -154,6 +158,20 @@ export default function ProfilePage() {
     const result = await matchesApi.like(profile.id);
     setLiked(true);
     if (result.matched) setMatched(true);
+  };
+
+  const handleUnlike = async () => {
+
+    await matchesApi.unlike(profile.id);
+
+    const match = matches.find(m =>
+      m.user1Id === profile.userId || m.user2Id === profile.userId
+    );
+    if (match) removeMatch(match.id);
+
+    setLiked(false);
+    setMatched(false);
+    setModalOpen(false);
   };
 
   return (
@@ -194,17 +212,9 @@ export default function ProfilePage() {
 
           {/* ── Like button ── */}
           <button
-            onClick={handleLike}
-            disabled={liked}
-            className={`px-5 py-2 rounded-full font-bold text-sm transition flex-shrink-0 border ${liked
-                ? 'bg-transparent opacity-50'
-                : 'border-transparent'
+            onClick={() => liked ? setModalOpen(true) : handleLike()}
+            className={`px-6 py-2 rounded-full font-bold text-sm transition ${liked ? 'bg-gray-700 text-gray-500 hover:bg-red-900/50 hover:text-red-400' : 'bg-pink-500 hover:bg-pink-600 text-white'
               }`}
-            style={
-              liked
-                ? { borderColor: layout.accentColor, color: layout.accentColor }
-                : { backgroundColor: layout.accentColor, color: '#000' }
-            }
           >
             {matched ? '💖 Matched!' : liked ? '♥ Liked' : '♥ Like'}
           </button>
@@ -221,6 +231,13 @@ export default function ProfilePage() {
         ))}
 
       </div>
+      <UnlikeModal
+        isOpen={modalOpen}
+        matched={matched}
+        displayName={profile.displayName}
+        onConfirm={handleUnlike}
+        onCancel={() => setModalOpen(false)}
+      />
     </div>
   );
 }

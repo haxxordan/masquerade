@@ -8,6 +8,7 @@ interface MatchState {
   unreadMatchIds: Set<string>;
   setMatches: (matches: Match[]) => void;
   addMatch: (match: Match) => void;
+  removeMatch: (matchId: string) => void;
   setActiveMatch: (matchId: string | null) => void;
   setMessages: (matchId: string, messages: Message[]) => void;
   addMessage: (matchId: string, message: Message) => void;
@@ -22,6 +23,12 @@ export const useMatchStore = create<MatchState>((set) => ({
   unreadMatchIds: new Set(),
   setMatches: (matches) => set({ matches }),
   addMatch: (match) => set((s) => ({ matches: [match, ...s.matches] })),
+  removeMatch: (matchId: string) =>
+    set((s) => ({
+      matches: s.matches.filter(m => m.id !== matchId),
+      activeMatchId: s.activeMatchId === matchId ? null : s.activeMatchId,
+    })),
+
   setActiveMatch: (matchId) => set({ activeMatchId: matchId }),
   setMessages: (matchId, messages) =>
     set((s) => ({ messages: { ...s.messages, [matchId]: messages } })),
