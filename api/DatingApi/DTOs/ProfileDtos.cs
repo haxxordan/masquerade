@@ -10,7 +10,18 @@ public record CreateProfileRequest(
     List<string> Hobbies,
     string? Faith,
     string? PoliticalLeaning,
-    string LayoutJson
+    ProfileLayoutDto Layout
+);
+
+public record UpdateProfileRequest(
+    string DisplayName,
+    string AnimalAvatarUrl,
+    string AnimalType,
+    List<string> MusicGenres,
+    List<string> Hobbies,
+    string? Faith,
+    string? PoliticalLeaning,
+    ProfileLayoutDto Layout
 );
 
 public record ProfileWidgetDto
@@ -28,7 +39,6 @@ public record ProfileLayoutDto
     public string AccentColor { get; set; } = "#ff6699";
     public List<ProfileWidgetDto> Widgets { get; set; } = [];
 }
-
 
 public record ProfileDto(
     string Id,

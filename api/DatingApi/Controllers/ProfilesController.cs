@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
@@ -39,7 +40,7 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
             AnimalType = request.AnimalType,
             Faith = request.Faith,
             PoliticalLeaning = request.PoliticalLeaning,
-            LayoutJson = request.LayoutJson,
+            LayoutJson = JsonSerializer.Serialize(request.Layout),
             Tags = request.MusicGenres
                 .Select(g => new ProfileTag { Category = TagCategory.Music, Value = g })
                 .Concat(request.Hobbies.Select(h => new ProfileTag { Category = TagCategory.Hobby, Value = h }))
@@ -50,6 +51,30 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
         await db.SaveChangesAsync();
         return CreatedAtAction(nameof(Get), new { id = profile.Id }, MatchingService.MapToDto(profile));
     }
+
+    [HttpPut("me")]
+    public async Task<ActionResult<ProfileDto>> Update(UpdateProfileRequest request)
+    {
+        var profile = await db.Profiles.Include(p => p.Tags).FirstOrDefaultAsync(p => p.UserId == UserId);
+        if (profile == null) return NotFound();
+
+        profile.DisplayName = request.DisplayName;
+        profile.AnimalAvatarUrl = request.AnimalAvatarUrl;
+        profile.AnimalType = request.AnimalType;
+        profile.Faith = request.Faith;
+        profile.PoliticalLeaning = request.PoliticalLeaning;
+        profile.LayoutJson = JsonSerializer.Serialize(request.Layout);
+
+        db.ProfileTags.RemoveRange(profile.Tags);
+        profile.Tags = request.MusicGenres
+            .Select(g => new ProfileTag { Category = TagCategory.Music, Value = g })
+            .Concat(request.Hobbies.Select(h => new ProfileTag { Category = TagCategory.Hobby, Value = h }))
+            .ToList();
+
+        await db.SaveChangesAsync();
+        return Ok(MatchingService.MapToDto(profile));
+    }
+
 
     [HttpPost("suggest")]
     public async Task<List<ProfileDto>> Suggest(SuggestQuery query) => await matching.SuggestAsync(UserId, query);

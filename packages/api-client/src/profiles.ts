@@ -11,8 +11,8 @@ export const profilesApi = {
   create: (data: CreateProfileRequest) =>
     getClient().post<Profile>('/api/profiles', data).then(r => r.data),
 
-  update: (id: string, data: UpdateProfileRequest) =>
-    getClient().put<Profile>(`/api/profiles/${id}`, data).then(r => r.data),
+  update: (data: UpdateProfileRequest) =>
+    getClient().put<Profile>('/api/profiles/me', data).then(r => r.data),
 
   suggest: (query: SuggestQuery) =>
     getClient().post<Profile[]>('/api/profiles/suggest', query).then(r => r.data),

@@ -14,12 +14,12 @@ import { profilesApi } from '@dating/api-client';
 import type { Profile, ProfileLayout, ProfileWidget } from '@dating/types';
 import Image from 'next/image';
 
-const THEMES = ['dark', 'retro', 'ocean', 'forest'] as const;
+const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
 const themeClasses: Record<string, string> = {
-    dark: 'bg-black text-white',
-    retro: 'bg-[#000033] text-[#ff99ff]',
+    riot: 'bg-black text-white',
+    jupiter: 'bg-[#000033] text-[#ff99ff]',
     ocean: 'bg-[#001133] text-[#99ccff]',
-    forest: 'bg-[#0a1a0a] text-[#99ff99]',
+    sparrow: 'bg-[#0a1a0a] text-[#99ff99]',
 };
 
 function SortableWidget({ widget, onEdit }: {
@@ -90,13 +90,22 @@ export default function MyProfilePage() {
     };
 
     const handleSave = async () => {
-        if (!profile || !layout) return;
-        setSaving(true);
-        await profilesApi.update(profile.id, { layout });
-        setSaving(false);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
-    };
+    if (!profile || !layout) return;
+    setSaving(true);
+    await profilesApi.update({
+        displayName: profile.displayName,
+        animalAvatarUrl: profile.animalAvatarUrl,
+        animalType: profile.animalType,
+        musicGenres: profile.musicGenres,
+        hobbies: profile.hobbies,
+        faith: profile.faith ?? undefined,
+        politicalLeaning: profile.politicalLeaning ?? undefined,
+        layout,
+    });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+};
 
     if (!profile || !layout) return <div className="p-8 text-white">Loading...</div>;
 
