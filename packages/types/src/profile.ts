@@ -57,3 +57,16 @@ export interface SuggestQuery {
   page?: number;
   pageSize?: number;
 }
+
+export const MUSIC_GENRES = [
+  'Rock', 'Pop', 'Hip-Hop', 'Jazz', 'Classical',
+  'Electronic', 'Country', 'Folk', 'R&B', 'Metal',
+] as const;
+
+export const HOBBY_OPTIONS = [
+  'Gaming', 'Reading', 'Hiking', 'Cooking', 'Art',
+  'Music', 'Travel', 'Fitness', 'Films', 'Writing',
+] as const;
+
+export type MusicGenre = typeof MUSIC_GENRES[number];
+export type Hobby = typeof HOBBY_OPTIONS[number];

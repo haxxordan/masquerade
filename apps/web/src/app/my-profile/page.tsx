@@ -15,8 +15,10 @@ import type { Profile, ProfileLayout, ProfileWidget } from '@dating/types';
 import Image from 'next/image';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
+import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
 
 const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
+
 
 const themeClasses: Record<string, string> = {
     riot: 'bg-black text-white',
@@ -197,14 +199,67 @@ function ViewWidget({
 
 // ─── Edit-mode sortable widget ────────────────────────────────────────────────
 
+const WIDGET_OPTIONS: { type: ProfileWidget['type']; label: string; emoji: string }[] = [
+    { type: 'about', label: 'About Me', emoji: '📝' },
+    { type: 'music', label: 'Music', emoji: '🎵' },
+    { type: 'hobbies', label: 'Hobbies', emoji: '🎨' },
+    { type: 'top8', label: 'Top 8', emoji: '👥' },
+    { type: 'blog', label: 'Blog', emoji: '📖' },
+];
+
+function AddWidgetBar({
+    accentColor,
+    onAdd,
+}: {
+    accentColor: string;
+    onAdd: (type: ProfileWidget['type']) => void;
+}) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="mt-2 mb-4">
+            <button
+                onClick={() => setOpen(o => !o)}
+                className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm border transition opacity-70 hover:opacity-100"
+                style={{ borderColor: accentColor, color: accentColor }}
+            >
+                <span className="text-lg leading-none">{open ? '✕' : '+'}</span>
+                <span>{open ? 'Cancel' : 'Add Widget'}</span>
+            </button>
+
+            {open && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                    {WIDGET_OPTIONS.map(opt => (
+                        <button
+                            key={opt.type}
+                            onClick={() => { onAdd(opt.type); setOpen(false); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm transition opacity-70 hover:opacity-100"
+                            style={{ borderColor: accentColor, color: accentColor }}
+                        >
+                            <span>{opt.emoji}</span>
+                            <span>{opt.label}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function SortableWidget({
     widget,
     accentColor,
+    profile,
     onEdit,
+    onRemove,
+    onProfileChange,
 }: {
     widget: ProfileWidget;
     accentColor: string;
+    profile: Profile;
     onEdit: (id: string, field: 'title' | 'content', value: string) => void;
+    onRemove: (id: string) => void;
+    onProfileChange: (fields: Partial<Profile>) => void;
 }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: widget.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
@@ -215,17 +270,29 @@ function SortableWidget({
             style={{ ...style, borderColor: accentColor }}
             className="border rounded mb-3 overflow-hidden"
         >
-            {/* Drag handle + type label */}
+            {/* Header */}
             <div
-                className="flex items-center gap-2 px-3 py-1 text-xs font-bold uppercase tracking-widest text-black cursor-grab active:cursor-grabbing"
+                className="flex items-center gap-2 px-3 py-1 text-xs font-bold uppercase tracking-widest text-black"
                 style={{ backgroundColor: accentColor }}
-                {...attributes}
-                {...listeners}
             >
-                <span className="opacity-60">⠿</span>
-                <span>{widget.type}</span>
+                <span
+                    className="opacity-60 cursor-grab active:cursor-grabbing"
+                    {...attributes}
+                    {...listeners}
+                >
+                    ⠿
+                </span>
+                <span className="flex-1">{widget.type}</span>
+                <button
+                    onClick={() => onRemove(widget.id)}
+                    className="ml-auto text-black/60 hover:text-black transition text-base leading-none"
+                    title="Remove widget"
+                >
+                    ✕
+                </button>
             </div>
 
+            {/* Body */}
             <div className="p-3 flex flex-col gap-2">
                 <input
                     className="bg-transparent border-b border-white/20 text-sm font-semibold outline-none w-full pb-1"
@@ -233,13 +300,79 @@ function SortableWidget({
                     placeholder="Widget title..."
                     onChange={e => onEdit(widget.id, 'title', e.target.value)}
                 />
-                <textarea
-                    className="bg-transparent text-sm outline-none w-full resize-none min-h-[80px] opacity-80"
-                    value={widget.content}
-                    placeholder="Nothing here yet..."
-                    onChange={e => onEdit(widget.id, 'content', e.target.value)}
-                />
+
+                {widget.type === 'music' && (
+                    <TagPicker
+                        options={MUSIC_GENRES}
+                        selected={profile.musicGenres}
+                        accentColor={accentColor}
+                        onChange={updated => onProfileChange({ musicGenres: updated })}
+                    />
+                )}
+
+                {widget.type === 'hobbies' && (
+                    <TagPicker
+                        options={HOBBY_OPTIONS}
+                        selected={profile.hobbies}
+                        accentColor={accentColor}
+                        onChange={updated => onProfileChange({ hobbies: updated })}
+                    />
+                )}
+
+                {(widget.type === 'about' || widget.type === 'blog') && (
+                    <textarea
+                        className="bg-transparent text-sm outline-none w-full resize-none min-h-[80px] opacity-80"
+                        value={widget.content}
+                        placeholder="Nothing here yet..."
+                        onChange={e => onEdit(widget.id, 'content', e.target.value)}
+                    />
+                )}
+
+                {widget.type === 'top8' && (
+                    <p className="text-xs opacity-40 italic">Top 8 uses placeholder data for now.</p>
+                )}
             </div>
+        </div>
+    );
+}
+
+function TagPicker({
+    options,
+    selected,
+    accentColor,
+    onChange,
+}: {
+    options: readonly string[];
+    selected: string[];
+    accentColor: string;
+    onChange: (updated: string[]) => void;
+}) {
+    const toggle = (item: string) =>
+        onChange(
+            selected.includes(item)
+                ? selected.filter(i => i !== item)
+                : [...selected, item]
+        );
+
+    return (
+        <div className="flex flex-wrap gap-2 pt-1">
+            {options.map(opt => {
+                const active = selected.includes(opt);
+                return (
+                    <button
+                        key={opt}
+                        onClick={() => toggle(opt)}
+                        className="px-3 py-1 rounded-full text-xs border transition"
+                        style={
+                            active
+                                ? { backgroundColor: accentColor, borderColor: accentColor, color: '#000' }
+                                : { borderColor: accentColor, color: accentColor, opacity: 0.5 }
+                        }
+                    >
+                        {opt}
+                    </button>
+                );
+            })}
         </div>
     );
 }
@@ -252,6 +385,8 @@ export default function MyProfilePage() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [editMode, setEditMode] = useState(false);
+    const [savedLayout, setSavedLayout] = useState<ProfileLayout | null>(null);
+    const [savedProfile, setSavedProfile] = useState<Profile | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -280,11 +415,33 @@ export default function MyProfilePage() {
         setLayout({ ...layout, widgets: reordered });
     };
 
+    const handleAddWidget = (type: ProfileWidget['type']) => {
+        if (!layout) return;
+        const newWidget: ProfileWidget = {
+            id: `w-${type}-${Date.now()}`,
+            type,
+            title: WIDGET_OPTIONS.find(o => o.type === type)?.label ?? type,
+            content: '',
+            order: layout.widgets.length,
+        };
+        setLayout({ ...layout, widgets: [...layout.widgets, newWidget] });
+    };
+
     const handleEditWidget = (id: string, field: 'title' | 'content', value: string) => {
         if (!layout) return;
         setLayout({
             ...layout,
             widgets: layout.widgets.map(w => w.id === id ? { ...w, [field]: value } : w),
+        });
+    };
+
+    const handleRemoveWidget = (id: string) => {
+        if (!layout) return;
+        setLayout({
+            ...layout,
+            widgets: layout.widgets
+                .filter(w => w.id !== id)
+                .map((w, i) => ({ ...w, order: i })), // reindex order
         });
     };
 
@@ -303,9 +460,17 @@ export default function MyProfilePage() {
         });
         setSaving(false);
         setSaved(true);
+        setSavedLayout(null);
+        setSavedProfile(null);
         setEditMode(false);
         setTimeout(() => setSaved(false), 2000);
     };
+
+    const handleProfileChange = (fields: Partial<Profile>) => {
+        if (!profile) return;
+        setProfile({ ...profile, ...fields });
+    };
+
 
     if (!profile || !layout) {
         return (
@@ -331,7 +496,11 @@ export default function MyProfilePage() {
                         {editMode ? (
                             <>
                                 <button
-                                    onClick={() => setEditMode(false)}
+                                    onClick={() => {
+                                        if (savedLayout) setLayout(savedLayout);
+                                        if (savedProfile) setProfile(savedProfile);
+                                        setEditMode(false);
+                                    }}
                                     className="px-4 py-1 rounded-full text-sm border border-white/20 opacity-60 hover:opacity-100 transition"
                                 >
                                     Cancel
@@ -347,7 +516,11 @@ export default function MyProfilePage() {
                             </>
                         ) : (
                             <button
-                                onClick={() => setEditMode(true)}
+                                onClick={() => {
+                                    setSavedLayout(layout);
+                                    setSavedProfile(profile);
+                                    setEditMode(true);
+                                }}
                                 className="px-4 py-1 rounded-full text-sm border transition hover:opacity-100 opacity-70"
                                 style={{ borderColor: layout.accentColor, color: layout.accentColor }}
                             >
@@ -427,9 +600,13 @@ export default function MyProfilePage() {
                                     key={widget.id}
                                     widget={widget}
                                     accentColor={layout.accentColor}
+                                    profile={profile}
                                     onEdit={handleEditWidget}
+                                    onRemove={handleRemoveWidget}
+                                    onProfileChange={handleProfileChange}
                                 />
                             ))}
+
                         </SortableContext>
                     </DndContext>
                 ) : (
@@ -442,7 +619,10 @@ export default function MyProfilePage() {
                         />
                     ))
                 )}
-
+                { }
+                {editMode && (
+                    <AddWidgetBar accentColor={layout.accentColor} onAdd={handleAddWidget} />
+                )}
             </div>
         </div>
     );

@@ -4,12 +4,10 @@ import { useRouter } from 'next/navigation';
 import { profilesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
 import type { ProfileLayout } from '@dating/types';
-
-const MUSIC_GENRES = ['Rock', 'Pop', 'Hip-Hop', 'Jazz', 'Classical', 'Electronic', 'Country', 'Folk', 'R&B', 'Metal'];
-const HOBBY_OPTIONS = ['Gaming', 'Reading', 'Hiking', 'Cooking', 'Art', 'Music', 'Travel', 'Fitness', 'Films', 'Writing'];
+import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
 
 const defaultLayout: ProfileLayout = {
-  theme: 'dark',
+  theme: 'riot',
   accentColor: '#ff6699',
   widgets: [
     { id: '1', type: 'about', title: 'About Me', content: '', order: 0 },
