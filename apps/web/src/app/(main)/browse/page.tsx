@@ -5,6 +5,9 @@ import type { Profile } from '@dating/types';
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { Lobster } from 'next/font/google';
+const lobster = Lobster({ weight: '400', subsets: ['latin'] });
+
 export default function BrowsePage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -35,7 +38,7 @@ export default function BrowsePage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-pink-400 mb-6">Ballroom 🪩</h1>
+      <h1 className={`${lobster.className} text-3xl font-bold text-pink-400 mb-6`}>ballroom 🪩</h1>
       <h2 className="text-lg font-bold text-pink-400 mb-6">Find people who share your interests</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {profiles.map(p => (

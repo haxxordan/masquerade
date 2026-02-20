@@ -1,9 +1,11 @@
 import Link from 'next/link';
+import { Lobster } from 'next/font/google';
+const lobster = Lobster({ weight: '400', subsets: ['latin'] });
 
 export default function Home() {
   return (
     <main className="flex flex-col items-center justify-center min-h-screen gap-8 p-8">
-      <h1 className="text-6xl font-bold text-pink-400">🐾 Masquerade</h1>
+      <h1 className={`${lobster.className} text-6xl font-bold text-pink-400`}>🐾 masquerade</h1>
       <p className="text-gray-400 text-xl text-center max-w-md">
         No face photos. Just your favorite animal, your vibe, and your people.
       </p>
