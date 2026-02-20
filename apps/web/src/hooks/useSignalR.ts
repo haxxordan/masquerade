@@ -60,6 +60,16 @@ export function useSignalR() {
             }
         });
 
+        connection.on('NewLike', (data: { profileId: string; displayName: string; animalAvatarUrl: string }) => {
+            toast(`🐾 ${data.displayName} liked you!`, {
+                description: 'Maybe the feeling is mutual?',
+                action: {
+                    label: 'View profile',
+                    onClick: () => window.location.href = `/profile/${data.profileId}`,
+                },
+            });
+        });
+
         connection.start()
             .then(() => {
                 if (cancelled) {

@@ -26,6 +26,10 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
         if (likeeProfile == null)
             return NotFound("Profile not found.");
 
+        var likerProfile = await db.Profiles.FirstOrDefaultAsync(p => p.UserId == UserId);
+        if (likerProfile == null)
+            return NotFound("Your profile not found.");
+
         var likeeUserId = likeeProfile.UserId; // now it's the same type as LikerId
 
         var existing = await db.Likes
@@ -34,6 +38,7 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
             return BadRequest("Already liked.");
 
         db.Likes.Add(new Like { LikerId = UserId, LikeeId = likeeUserId });
+
         await db.SaveChangesAsync();
 
         var mutual = await db.Likes
@@ -48,7 +53,15 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
             await hub.Clients.User(UserId).SendAsync("NewMatch", match.Id);
             await hub.Clients.User(likeeUserId).SendAsync("NewMatch", match.Id);
         }
-
+        else
+        {
+            await hub.Clients.User(likeeUserId).SendAsync("NewLike", new
+            {
+                ProfileId = likerProfile?.Id,
+                DisplayName = likerProfile?.DisplayName,
+                AnimalAvatarUrl = likerProfile?.AnimalAvatarUrl,
+            });
+        }
         return new LikeResponse(mutual, match?.Id);
     }
 

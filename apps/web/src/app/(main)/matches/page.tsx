@@ -7,6 +7,7 @@ import { matchesApi } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
 import { useAuthStore } from '@dating/store';
 import type { Match, Message } from '@dating/types';
+import Link from 'next/link';
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
@@ -162,11 +163,20 @@ export default function MatchesPage() {
                                     />
                                 ) : '🐾'}
                             </div>
-                            <div>
+                            <div className="flex-1 min-w-0">
                                 <div className="text-sm font-semibold">{activeMatch.otherProfile?.displayName}</div>
                                 <div className="text-xs opacity-40 capitalize">{activeMatch.otherProfile?.animalType}</div>
                             </div>
+                            {activeMatch.otherProfile && (
+                                <Link
+                                    href={`/profile/${activeMatch.otherProfile.id}`}
+                                    className="text-xs px-3 py-1.5 rounded-full border border-white/20 hover:border-[#ff6699] hover:text-[#ff6699] opacity-60 hover:opacity-100 transition flex-shrink-0"
+                                >
+                                    view profile
+                                </Link>
+                            )}
                         </div>
+
 
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto px-5 py-4">
