@@ -5,6 +5,13 @@ import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Lobster } from 'next/font/google';
 import { useAuthStore } from '@dating/store';
+import { useSignalR } from '@/hooks/useSignalR';
+import { Toaster } from 'sonner';
+
+function SignalRProvider() {
+    useSignalR();
+    return null;
+}
 
 const lobster = Lobster({ weight: '400', subsets: ['latin'] });
 
@@ -92,6 +99,19 @@ function NavDropdown() {
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     return (
         <>
+            <SignalRProvider />
+            <Toaster
+                position="bottom-right"
+                theme="dark"
+                toastOptions={{
+                    style: {
+                        background: '#111',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: '#fff',
+                        fontFamily: 'monospace',
+                    },
+                }}
+            />
             <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 py-3 bg-black/60 backdrop-blur border-b border-white/10">
                 <Link
                     href="/browse"
