@@ -1,4 +1,4 @@
-# Dating Monorepo
+# Masquerade
 
 ## Stack
 - **Web**: Next.js 15 (App Router) + Tailwind CSS
