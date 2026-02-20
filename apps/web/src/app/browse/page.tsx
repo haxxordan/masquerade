@@ -35,7 +35,8 @@ export default function BrowsePage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold text-pink-400 mb-6">Discover 🐾</h1>
+      <h1 className="text-3xl font-bold text-pink-400 mb-6">Ballroom 🪩</h1>
+      <h2 className="text-lg font-bold text-pink-400 mb-6">Find people who share your interests</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {profiles.map(p => (
           <div key={p.id} className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800 hover:border-pink-500 transition">
