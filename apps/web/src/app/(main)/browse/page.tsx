@@ -129,11 +129,31 @@ export default function BrowsePage() {
                   <div className="text-xs opacity-40 capitalize">{p.animalType}</div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {p.musicGenres.slice(0, 3).map(g => (
-                    <span key={g} className="text-xs px-2 py-0.5 rounded-full border border-[#ff6699] bg-white/10 opacity-70">
-                      {g}
+                  {/* Hobbies — highest match weight */}
+                  {p.hobbies.slice(0, 3).map(h => (
+                    <span key={h} className="px-2 py-0.5 rounded-full text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                      {h}
                     </span>
                   ))}
+
+                  {/* Music */}
+                  {p.musicGenres.slice(0, 3).map(g => (
+                    <span key={g} className="px-2 py-0.5 rounded-full text-xs bg-pink-500/20 text-pink-300 border border-pink-500/30">
+                      🎵 {g}
+                    </span>
+                  ))}
+
+                  {/* Faith & politics — subtle, only if present */}
+                  {p.faith && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-700 text-gray-400 border border-gray-600">
+                      {p.faith}
+                    </span>
+                  )}
+                  {p.politicalLeaning && (
+                    <span className="px-2 py-0.5 rounded-full text-xs bg-gray-700 text-gray-400 border border-gray-600">
+                      {p.politicalLeaning}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-auto flex gap-2 pt-2">
                   <Link
