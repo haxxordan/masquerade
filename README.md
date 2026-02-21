@@ -4,11 +4,11 @@
 - **Web**: Next.js 15 (App Router) + Tailwind CSS
 - **Mobile**: Expo SDK 52 + React Native + NativeWind
 - **Shared**: TypeScript types, API client (axios), Zustand store
-- **Backend**: .NET 9 Web API + EF Core + PostgreSQL + SignalR
+- **Backend**: .NET 10 Web API + EF Core + PostgreSQL + SignalR
 
 ## Prerequisites
 - Node 20+ and npm 10+
-- .NET 9 SDK
+- .NET 10 SDK
 - PostgreSQL running locally (or Docker)
 - Expo CLI: `npm install -g expo-cli`
 - EAS CLI (for mobile builds): `npm install -g eas-cli`
