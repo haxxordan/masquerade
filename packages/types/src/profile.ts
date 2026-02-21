@@ -56,10 +56,6 @@ export interface UpdateProfileRequest {
 }
 
 export interface SuggestQuery {
-  musicGenres?: string[];
-  hobbies?: string[];
-  faith?: string;
-  politicalLeaning?: string;
   lookingFor?: LookingFor;
   page?: number;
   pageSize?: number;

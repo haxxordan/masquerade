@@ -11,14 +11,16 @@ public class MatchingService(AppDbContext db)
     /// Returns profiles sorted by tag overlap score, filtered by optional criteria.
     public async Task<List<ProfileDto>> SuggestAsync(string requestingUserId, SuggestQuery query)
     {
+        // Fetch the requesting user's profile for scoring
+        var me = await db.Profiles
+            .Include(p => p.Tags)
+            .FirstOrDefaultAsync(p => p.UserId == requestingUserId);
+
         var baseQuery = db.Profiles
             .Include(p => p.Tags)
             .Where(p => p.UserId != requestingUserId);
 
-        if (!string.IsNullOrWhiteSpace(query.Faith))
-            baseQuery = baseQuery.Where(p => p.Faith == query.Faith);
-        if (!string.IsNullOrWhiteSpace(query.PoliticalLeaning))
-            baseQuery = baseQuery.Where(p => p.PoliticalLeaning == query.PoliticalLeaning);
+        // LookingFor is still a hard filter — either you're open to them or you're not
         if (!string.IsNullOrWhiteSpace(query.LookingFor) && query.LookingFor != "Everyone")
             baseQuery = baseQuery.Where(p => p.Gender == query.LookingFor);
 
@@ -35,15 +37,26 @@ public class MatchingService(AppDbContext db)
             .Select(m => m.User1Id == requestingUserId ? m.User2Id : m.User1Id)
             .ToHashSetAsync();
 
-        var desiredMusic = query.MusicGenres ?? [];
-        var desiredHobbies = query.Hobbies ?? [];
+        // Use the requesting user's own tags as the baseline for scoring
+        var myMusic = me?.Tags
+            .Where(t => t.Category == TagCategory.Music)
+            .Select(t => t.Value)
+            .ToHashSet() ?? [];
+
+        var myHobbies = me?.Tags
+            .Where(t => t.Category == TagCategory.Hobby)
+            .Select(t => t.Value)
+            .ToHashSet() ?? [];
 
         var scored = profiles
             .Select(p =>
             {
-                var musicScore = p.Tags.Count(t => t.Category == TagCategory.Music && desiredMusic.Contains(t.Value));
-                var hobbyScore = p.Tags.Count(t => t.Category == TagCategory.Hobby && desiredHobbies.Contains(t.Value));
-                return (Profile: p, Score: musicScore * 2 + hobbyScore);
+                var musicScore = p.Tags.Count(t => t.Category == TagCategory.Music && myMusic.Contains(t.Value)) * 2;
+                var hobbyScore = p.Tags.Count(t => t.Category == TagCategory.Hobby && myHobbies.Contains(t.Value)) * 3;
+                var faithScore = (!string.IsNullOrWhiteSpace(me?.Faith) && me.Faith == p.Faith) ? 4 : 0;
+                var politicScore = (!string.IsNullOrWhiteSpace(me?.PoliticalLeaning) && me.PoliticalLeaning == p.PoliticalLeaning) ? 3 : 0;
+
+                return (Profile: p, Score: musicScore + hobbyScore + faithScore + politicScore);
             })
             .OrderByDescending(x => x.Score)
             .Skip(query.Page * query.PageSize)
@@ -53,7 +66,6 @@ public class MatchingService(AppDbContext db)
 
         return scored;
     }
-
 
     public static ProfileDto MapToDto(Profile p) =>
     MapToDto(p, [], []);

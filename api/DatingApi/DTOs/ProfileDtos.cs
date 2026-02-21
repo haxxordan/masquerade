@@ -61,12 +61,7 @@ public record ProfileDto(
     LikeStatus LikeStatus = LikeStatus.None
 );
 
-
 public record SuggestQuery(
-    List<string>? MusicGenres,
-    List<string>? Hobbies,
-    string? Faith,
-    string? PoliticalLeaning,
     string? LookingFor,
     int Page = 0,
     int PageSize = 20

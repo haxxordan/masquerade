@@ -1,13 +1,14 @@
 "use client";
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { profilesApi, matchesApi } from '@dating/api-client';
-import type { Profile } from '@dating/types';
+import type { Profile, LookingFor } from '@dating/types';
 import Image from 'next/image';
 import Link from 'next/link';
 
 import { Lobster } from 'next/font/google';
 import { UnlikeModal } from '@/components/UnlikeModal';
 import { useMatchStore } from '@dating/store';
+
 const lobster = Lobster({ weight: '400', subsets: ['latin'] });
 
 export default function BrowsePage() {
@@ -18,6 +19,8 @@ export default function BrowsePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [myLookingFor, setMyLookingFor] = useState<LookingFor | undefined>(undefined);
+  const [ready, setReady] = useState(false); // gate fetchPage until we have the user's profile
   const { matches, removeMatch } = useMatchStore();
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -25,8 +28,8 @@ export default function BrowsePage() {
   const [modalProfileId, setModalProfileId] = useState<string | null>(null);
   const modalProfile = profiles.find(p => p.id === modalProfileId) ?? null;
 
-  const fetchPage = async (pageNum: number) => {
-    const data = await profilesApi.suggest({ page: pageNum, pageSize: PAGE_SIZE });
+  const fetchPage = useCallback(async (pageNum: number) => {
+    const data = await profilesApi.suggest({ lookingFor: myLookingFor, page: pageNum, pageSize: PAGE_SIZE });
     setProfiles(prev => pageNum === 0 ? data : [...prev, ...data]);
     setLikedIds(prev => new Set([
       ...prev,
@@ -37,12 +40,20 @@ export default function BrowsePage() {
       ...data.filter(p => p.likeStatus === 'Matched').map(p => p.id)
     ]));
     setHasMore(data.length === PAGE_SIZE);
-  };
+  }, [myLookingFor]);
 
   // Initial load
   useEffect(() => {
-    fetchPage(0).finally(() => setLoading(false));
+    profilesApi.getMe()
+      .then((me: Profile) => setMyLookingFor(me.lookingFor))
+      .catch(() => setMyLookingFor(undefined))
+      .finally(() => setReady(true));
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    fetchPage(0).finally(() => setLoading(false));
+  }, [ready]);
 
   // Infinite scroll observer
   useEffect(() => {
@@ -64,7 +75,7 @@ export default function BrowsePage() {
 
     if (bottomRef.current) observer.observe(bottomRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, page]);
+  }, [hasMore, loadingMore, page, fetchPage]);
 
   const handleLike = async (profileId: string) => {
     const result = await matchesApi.like(profileId);
