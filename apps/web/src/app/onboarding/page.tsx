@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { profilesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
+import { Lobster } from 'next/font/google';
 import { MUSIC_GENRES, HOBBY_OPTIONS, GENDER_OPTIONS, LOOKING_FOR_OPTIONS } from '@dating/types';
 import type { Gender, LookingFor, ProfileLayout } from '@dating/types';
 
@@ -14,6 +15,8 @@ const defaultLayout: ProfileLayout = {
     { id: '2', type: 'music', title: 'My Music', content: '', order: 1 },
   ],
 };
+
+const lobster = Lobster({ weight: '400', subsets: ['latin'] });
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -76,7 +79,7 @@ export default function OnboardingPage() {
 
         {step === 2 && (
           <div className="flex flex-col gap-6">
-            <h2 className="text-2xl font-bold text-pink-400">About You</h2>
+            <h2 className={`${lobster.className} text-2xl font-bold text-pink-400`}>about you</h2>
 
             <div>
               <p className="text-gray-400 text-sm mb-2">I am a...</p>
@@ -85,8 +88,8 @@ export default function OnboardingPage() {
                   <button
                     key={g}
                     className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${gender === g
-                        ? 'bg-pink-500 border-pink-500 text-white'
-                        : 'border-gray-600 text-gray-400 hover:border-pink-400'
+                      ? 'bg-pink-500 border-pink-500 text-white'
+                      : 'border-gray-600 text-gray-400 hover:border-pink-400'
                       }`}
                     onClick={() => setGender(g)}
                   >
@@ -103,8 +106,8 @@ export default function OnboardingPage() {
                   <button
                     key={l}
                     className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${lookingFor === l
-                        ? 'bg-purple-500 border-purple-500 text-white'
-                        : 'border-gray-600 text-gray-400 hover:border-purple-400'
+                      ? 'bg-purple-500 border-purple-500 text-white'
+                      : 'border-gray-600 text-gray-400 hover:border-purple-400'
                       }`}
                     onClick={() => setLookingFor(l)}
                   >

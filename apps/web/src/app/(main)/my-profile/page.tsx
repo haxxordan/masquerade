@@ -11,13 +11,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { profilesApi } from '@dating/api-client';
-import type { Profile, ProfileLayout, ProfileWidget } from '@dating/types';
 import Image from 'next/image';
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
 import { WidgetPanel, TOP8_PLACEHOLDERS } from '@/components/profile';
+import { MUSIC_GENRES, HOBBY_OPTIONS, GENDER_OPTIONS, LOOKING_FOR_OPTIONS } from '@dating/types';
+import type { Profile, ProfileLayout, ProfileWidget, Gender, LookingFor } from '@dating/types';
 
+// ─── Constants ───────────────────────────────────────────────────────────────
 const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
 
 const themeClasses: Record<string, string> = {
@@ -414,6 +414,8 @@ export default function MyProfilePage() {
             displayName: profile.displayName,
             animalAvatarUrl: profile.animalAvatarUrl,
             animalType: profile.animalType,
+            gender: profile.gender,
+            lookingFor: profile.lookingFor,
             musicGenres: profile.musicGenres,
             hobbies: profile.hobbies,
             faith: profile.faith ?? undefined,
@@ -511,6 +513,8 @@ export default function MyProfilePage() {
                     <div>
                         <div className="text-2xl font-bold">{profile.displayName}</div>
                         <div className="text-sm opacity-60 capitalize">{profile.animalType}</div>
+                        <div className="text-sm opacity-70">{profile.gender}</div>
+                        <div className="text-sm opacity-70">Looking for: {profile.lookingFor}</div>
                         {profile.faith && (
                             <div className="text-xs opacity-40 mt-0.5">{profile.faith}</div>
                         )}
@@ -549,6 +553,50 @@ export default function MyProfilePage() {
                                 className="w-10 h-10 rounded cursor-pointer border-0 bg-transparent"
                             />
                             <span className="text-xs opacity-40">{layout.accentColor}</span>
+                        </div>
+                    </div>
+                )}
+
+                {editMode && (
+                    <div className="flex flex-col gap-4 mt-4 mb-6">
+                        <div>
+                            <p className="text-sm opacity-60 mb-2">I am a...</p>
+                            <div className="flex flex-wrap gap-2">
+                                {GENDER_OPTIONS.map(g => (
+                                    <button
+                                        key={g}
+                                        onClick={() => handleProfileChange({ gender: g as Gender })}
+                                        className="px-3 py-1 rounded-full text-xs border transition"
+                                        style={
+                                            profile.gender === g
+                                                ? { backgroundColor: layout.accentColor, borderColor: layout.accentColor, color: '#000' }
+                                                : { borderColor: layout.accentColor, color: layout.accentColor, opacity: 0.5 }
+                                        }
+                                    >
+                                        {g}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="text-sm opacity-60 mb-2">Looking for...</p>
+                            <div className="flex flex-wrap gap-2">
+                                {LOOKING_FOR_OPTIONS.map(l => (
+                                    <button
+                                        key={l}
+                                        onClick={() => handleProfileChange({ lookingFor: l as LookingFor })}
+                                        className="px-3 py-1 rounded-full text-xs border transition"
+                                        style={
+                                            profile.lookingFor === l
+                                                ? { backgroundColor: layout.accentColor, borderColor: layout.accentColor, color: '#000' }
+                                                : { borderColor: layout.accentColor, color: layout.accentColor, opacity: 0.5 }
+                                        }
+                                    >
+                                        {l}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 )}
