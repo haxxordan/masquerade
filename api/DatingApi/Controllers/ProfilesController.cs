@@ -57,6 +57,8 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
             AnimalType = request.AnimalType,
             Faith = request.Faith,
             PoliticalLeaning = request.PoliticalLeaning,
+            Gender = request.Gender,
+            LookingFor = request.LookingFor,
             LayoutJson = JsonSerializer.Serialize(request.Layout),
             Tags = request.MusicGenres
                 .Select(g => new ProfileTag { Category = TagCategory.Music, Value = g })
@@ -80,6 +82,8 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
         profile.AnimalType = request.AnimalType;
         profile.Faith = request.Faith;
         profile.PoliticalLeaning = request.PoliticalLeaning;
+        profile.Gender = request.Gender;
+        profile.LookingFor = request.LookingFor;
         profile.LayoutJson = JsonSerializer.Serialize(request.Layout);
 
         db.ProfileTags.RemoveRange(profile.Tags);

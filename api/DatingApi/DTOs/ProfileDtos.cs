@@ -10,6 +10,8 @@ public record CreateProfileRequest(
     List<string> Hobbies,
     string? Faith,
     string? PoliticalLeaning,
+    string Gender,
+    string LookingFor,
     ProfileLayoutDto Layout
 );
 
@@ -21,6 +23,8 @@ public record UpdateProfileRequest(
     List<string> Hobbies,
     string? Faith,
     string? PoliticalLeaning,
+    string Gender,
+    string LookingFor,
     ProfileLayoutDto Layout
 );
 
@@ -46,6 +50,8 @@ public record ProfileDto(
     string DisplayName,
     string AnimalAvatarUrl,
     string AnimalType,
+    string Gender,
+    string LookingFor,
     List<string> MusicGenres,
     List<string> Hobbies,
     string? Faith,
@@ -61,6 +67,7 @@ public record SuggestQuery(
     List<string>? Hobbies,
     string? Faith,
     string? PoliticalLeaning,
+    string? LookingFor,
     int Page = 0,
     int PageSize = 20
 );

@@ -16,6 +16,9 @@ public class Profile
     public string? Faith { get; set; }
     public string? PoliticalLeaning { get; set; }
 
+    public string Gender { get; set; } = string.Empty;
+    public string LookingFor { get; set; } = string.Empty;
+
     // Stored as JSONB in Postgres
     public string LayoutJson { get; set; } = "{}";
 

@@ -19,6 +19,8 @@ public class MatchingService(AppDbContext db)
             baseQuery = baseQuery.Where(p => p.Faith == query.Faith);
         if (!string.IsNullOrWhiteSpace(query.PoliticalLeaning))
             baseQuery = baseQuery.Where(p => p.PoliticalLeaning == query.PoliticalLeaning);
+        if (!string.IsNullOrWhiteSpace(query.LookingFor) && query.LookingFor != "Everyone")
+            baseQuery = baseQuery.Where(p => p.Gender == query.LookingFor);
 
         var profiles = await baseQuery.ToListAsync();
 
@@ -57,7 +59,7 @@ public class MatchingService(AppDbContext db)
     MapToDto(p, [], []);
 
     public static ProfileDto MapToDto(Profile p, HashSet<string> likedUserIds, HashSet<string> matchedUserIds) => new(
-    p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType,
+    p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType, p.Gender, p.LookingFor,
     p.Tags.Where(t => t.Category == TagCategory.Music).Select(t => t.Value).ToList(),
     p.Tags.Where(t => t.Category == TagCategory.Hobby).Select(t => t.Value).ToList(),
     p.Faith, p.PoliticalLeaning,

@@ -25,6 +25,8 @@ export interface Profile {
   layout: ProfileLayout;
   createdAt: string;
   likeStatus: 'None' | 'Liked' | 'Matched';
+  gender: Gender;
+  lookingFor: LookingFor;
 }
 
 export interface CreateProfileRequest {
@@ -36,6 +38,8 @@ export interface CreateProfileRequest {
   faith?: string;
   politicalLeaning?: string;
   layout: ProfileLayout;
+  gender: Gender;
+  lookingFor: LookingFor;
 }
 
 export interface UpdateProfileRequest {
@@ -47,6 +51,8 @@ export interface UpdateProfileRequest {
   faith?: string;
   politicalLeaning?: string;
   layout?: ProfileLayout;
+  gender?: Gender;
+  lookingFor?: LookingFor;
 }
 
 export interface SuggestQuery {
@@ -70,3 +76,9 @@ export const HOBBY_OPTIONS = [
 
 export type MusicGenre = typeof MUSIC_GENRES[number];
 export type Hobby = typeof HOBBY_OPTIONS[number];
+
+export const GENDER_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Other'] as const;
+export type Gender = typeof GENDER_OPTIONS[number];
+
+export const LOOKING_FOR_OPTIONS = ['Man', 'Woman', 'Non-binary', 'Other', 'Everyone'] as const;
+export type LookingFor = typeof LOOKING_FOR_OPTIONS[number];
