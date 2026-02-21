@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { useAuthStore } from '@dating/store';
 import { useMatchStore } from '@dating/store';
-import { matchesApi } from '@dating/api-client';
 import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
+import { Match } from '@dating/types';
 
 export function useSignalR() {
     const { token } = useAuthStore();
@@ -29,21 +29,15 @@ export function useSignalR() {
             .withAutomaticReconnect()
             .build();
 
-        connection.on('NewMatch', async (matchId: string) => {
-            const matches = await matchesApi.getMatches();
-            const newMatch = matches.find(m => m.id === matchId);
-            if (newMatch) {
-                addMatch(newMatch);
-                const other = newMatch.otherProfile;
-                toast(`💖 You matched with ${other?.displayName ?? 'someone'}!`, {
-                    description: other?.animalType ? `A wild ${other.animalType} appears` : undefined,
-                    action: {
-                        label: 'Say hi',
-                        onClick: () => window.location.href = '/matches',
-                    },
-                });
-            }
+        connection.on('NewMatch', (newMatch: Match) => {
+            addMatch(newMatch);
+            const other = newMatch.otherProfile;
+            toast(`💖 You matched with ${other?.displayName ?? 'someone'}!`, {
+                description: other?.animalType ? `A wild ${other.animalType} appears` : undefined,
+                action: { label: 'Say hi', onClick: () => window.location.href = '/matches' },
+            });
         });
+
 
         connection.on('NewMessage', (message) => {
             addMessage(message.matchId, message);

@@ -47,11 +47,29 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
         Match? match = null;
         if (mutual)
         {
-            match = new Match { User1Id = UserId, User2Id = likeeUserId, Status = MatchStatus.Matched };
-            db.Matches.Add(match);
-            await db.SaveChangesAsync();
-            await hub.Clients.User(UserId).SendAsync("NewMatch", match.Id);
-            await hub.Clients.User(likeeUserId).SendAsync("NewMatch", match.Id);
+            if (mutual)
+            {
+                match = new Match { User1Id = UserId, User2Id = likeeUserId, Status = MatchStatus.Matched };
+                db.Matches.Add(match);
+                await db.SaveChangesAsync();
+
+                // Build full MatchDto for both sides — avoids extra HTTP call on the client
+                var currentUserProfile = await db.Profiles
+                    .Include(p => p.Tags)
+                    .FirstOrDefaultAsync(p => p.UserId == UserId);
+
+                var matchDtoForLikee = new MatchDto(
+                    match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
+                    currentUserProfile != null ? MatchingService.MapToDto(currentUserProfile) : null
+                );
+                var matchDtoForLiker = new MatchDto(
+                    match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
+                    MatchingService.MapToDto(likeeProfile)
+                );
+
+                await hub.Clients.User(UserId).SendAsync("NewMatch", matchDtoForLiker);
+                await hub.Clients.User(likeeUserId).SendAsync("NewMatch", matchDtoForLikee);
+            }
         }
         else
         {
