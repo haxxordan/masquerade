@@ -60,6 +60,7 @@ export interface SuggestQuery {
   hobbies?: string[];
   faith?: string;
   politicalLeaning?: string;
+  lookingFor?: LookingFor;
   page?: number;
   pageSize?: number;
 }

@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { profilesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
-import type { ProfileLayout } from '@dating/types';
-import { MUSIC_GENRES, HOBBY_OPTIONS } from '@dating/types';
+import { MUSIC_GENRES, HOBBY_OPTIONS, GENDER_OPTIONS, LOOKING_FOR_OPTIONS } from '@dating/types';
+import type { Gender, LookingFor, ProfileLayout } from '@dating/types';
 
 const defaultLayout: ProfileLayout = {
   theme: 'riot',
@@ -26,30 +26,34 @@ export default function OnboardingPage() {
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
   const [faith, setFaith] = useState('');
   const [political, setPolitical] = useState('');
+  const [gender, setGender] = useState<Gender | ''>('');
+  const [lookingFor, setLookingFor] = useState<LookingFor | ''>('');
 
   const toggleItem = (item: string, list: string[], setList: (l: string[]) => void) => {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
   };
 
   const handleFinish = async () => {
-  try {
-    const profile = await profilesApi.create({
-      displayName,
-      animalType,
-      animalAvatarUrl,
-      musicGenres: selectedMusic,
-      hobbies: selectedHobbies,
-      faith: faith || undefined,
-      politicalLeaning: political || undefined,
-      layout: defaultLayout,  // profilesApi will handle serialization
-    });
-    setProfile(profile);
-    router.push('/browse');
-  } catch (err: any) {
-    console.error('Profile creation failed:', err.response?.data);
-    alert(err.response?.data?.join('\n') ?? 'Failed to create profile');
-  }
-};
+    try {
+      const profile = await profilesApi.create({
+        displayName,
+        animalType,
+        animalAvatarUrl,
+        gender: gender as Gender,
+        lookingFor: lookingFor as LookingFor,
+        musicGenres: selectedMusic,
+        hobbies: selectedHobbies,
+        faith: faith || undefined,
+        politicalLeaning: political || undefined,
+        layout: defaultLayout,  // profilesApi will handle serialization
+      });
+      setProfile(profile);
+      router.push('/browse');
+    } catch (err: any) {
+      console.error('Profile creation failed:', err.response?.data);
+      alert(err.response?.data?.join('\n') ?? 'Failed to create profile');
+    }
+  };
 
 
   return (
@@ -71,6 +75,56 @@ export default function OnboardingPage() {
         )}
 
         {step === 2 && (
+          <div className="flex flex-col gap-6">
+            <h2 className="text-2xl font-bold text-pink-400">About You</h2>
+
+            <div>
+              <p className="text-gray-400 text-sm mb-2">I am a...</p>
+              <div className="flex flex-wrap gap-2">
+                {GENDER_OPTIONS.map(g => (
+                  <button
+                    key={g}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${gender === g
+                        ? 'bg-pink-500 border-pink-500 text-white'
+                        : 'border-gray-600 text-gray-400 hover:border-pink-400'
+                      }`}
+                    onClick={() => setGender(g)}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-gray-400 text-sm mb-2">Looking for...</p>
+              <div className="flex flex-wrap gap-2">
+                {LOOKING_FOR_OPTIONS.map(l => (
+                  <button
+                    key={l}
+                    className={`px-4 py-2 rounded-full text-sm font-semibold border transition ${lookingFor === l
+                        ? 'bg-purple-500 border-purple-500 text-white'
+                        : 'border-gray-600 text-gray-400 hover:border-purple-400'
+                      }`}
+                    onClick={() => setLookingFor(l)}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold disabled:opacity-40"
+              disabled={!gender || !lookingFor}
+              onClick={() => setStep(3)}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+
+        {step === 3 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-2xl font-bold text-pink-400">Your Music Taste</h2>
             <div className="flex flex-wrap gap-2">
@@ -80,11 +134,11 @@ export default function OnboardingPage() {
                   onClick={() => toggleItem(g, selectedMusic, setSelectedMusic)}>{g}</button>
               ))}
             </div>
-            <button className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold" onClick={() => setStep(3)}>Next →</button>
+            <button className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold" onClick={() => setStep(4)}>Next →</button>
           </div>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-2xl font-bold text-pink-400">Your Hobbies</h2>
             <div className="flex flex-wrap gap-2">
@@ -94,11 +148,11 @@ export default function OnboardingPage() {
                   onClick={() => toggleItem(h, selectedHobbies, setSelectedHobbies)}>{h}</button>
               ))}
             </div>
-            <button className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold" onClick={() => setStep(4)}>Next →</button>
+            <button className="bg-pink-500 hover:bg-pink-600 text-white p-3 rounded-lg font-bold" onClick={() => setStep(5)}>Next →</button>
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="flex flex-col gap-4">
             <h2 className="text-2xl font-bold text-pink-400">Optional: Faith & Politics</h2>
             <p className="text-gray-400 text-sm">These are optional but help find compatible matches.</p>
