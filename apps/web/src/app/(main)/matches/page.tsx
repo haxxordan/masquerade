@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { matchesApi } from '@dating/api-client';
@@ -67,7 +67,7 @@ function MatchCard({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export default function MatchesPage() {
+function MatchesContent() {
     const { userId } = useAuthStore();
     const {
         matches, activeMatchId,
@@ -231,5 +231,13 @@ export default function MatchesPage() {
             </div>
 
         </div>
+    );
+}
+
+export default function MatchesPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-black text-white font-mono flex items-center justify-center">Loading...</div>}>
+            <MatchesContent />
+        </Suspense>
     );
 }
