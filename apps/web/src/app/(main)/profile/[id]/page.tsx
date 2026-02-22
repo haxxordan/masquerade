@@ -133,9 +133,6 @@ export default function ProfilePage() {
 
   useEffect(() => {
     profilesApi.get(id).then(p => {
-      console.log('likeStatus:', p.likeStatus);
-      console.log('liked will be:', p.likeStatus === 'Liked');
-      console.log('matched will be:', p.likeStatus === 'Matched');
       setProfile(p);
       setLiked(p.likeStatus === 'Liked' || p.likeStatus === 'Matched');
       setMatched(p.likeStatus === 'Matched');
@@ -152,6 +149,7 @@ export default function ProfilePage() {
 
   const layout = profile.layout;
   const themeClass = themeClasses[layout.theme] ?? themeClasses.riot;
+  const accentColor = layout.accentColor;
   const sortedWidgets = [...layout.widgets].sort((a, b) => a.order - b.order);
 
   const handleLike = async () => {
@@ -182,7 +180,7 @@ export default function ProfilePage() {
         <Link
           href="/browse"
           className="text-xs opacity-40 hover:opacity-80 transition mb-6 inline-block"
-          style={{ color: layout.accentColor }}
+          style={{ color: accentColor }}
         >
           ← back to browse
         </Link>
@@ -191,7 +189,7 @@ export default function ProfilePage() {
         <div className="flex items-center gap-5 mb-8">
           <div
             className="w-20 h-20 rounded border-2 overflow-hidden flex items-center justify-center text-4xl flex-shrink-0"
-            style={{ borderColor: layout.accentColor }}
+            style={{ borderColor: accentColor }}
           >
             {profile.animalAvatarUrl ? (
               <Image
@@ -206,6 +204,18 @@ export default function ProfilePage() {
           <div className="flex-1">
             <div className="text-2xl font-bold">{profile.displayName}</div>
             <div className="text-sm opacity-60 capitalize">{profile.animalType}</div>
+            <div className="text-sm opacity-60">{profile.gender}</div>
+            <div className="text-sm opacity-60">Looking for: {profile.lookingFor}</div>
+            {/* {profile.gender && (
+              <span className="px-2 py-0.5 rounded-full text-xs border" style={{ borderColor: accentColor, color: accentColor }}>
+                {profile.gender}
+              </span>
+            )}
+            {profile.lookingFor && (
+              <span className="px-2 py-0.5 rounded-full text-xs border" style={{ borderColor: accentColor, color: accentColor }}>
+                Looking for: {profile.lookingFor}
+              </span>
+            )} */}
             {profile.faith && <div className="text-xs opacity-40 mt-0.5">{profile.faith}</div>}
             {profile.politicalLeaning && <div className="text-xs opacity-40">{profile.politicalLeaning}</div>}
           </div>
@@ -243,7 +253,7 @@ export default function ProfilePage() {
             key={widget.id}
             widget={widget}
             profile={profile}
-            accentColor={layout.accentColor}
+            accentColor={accentColor}
           />
         ))}
 
