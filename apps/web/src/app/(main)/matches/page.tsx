@@ -123,7 +123,7 @@ function MatchesContent() {
     };
 
     return (
-        <div className="min-h-screen bg-black text-white font-mono flex">
+        <div className="bg-black text-white font-mono flex overflow-hidden" style={{ height: 'calc(100vh - 3.5rem)' }}>
 
             {/* ── Match list (left panel) ── */}
             <div className="w-72 flex-shrink-0 border-r border-white/10 flex flex-col">
@@ -236,7 +236,7 @@ function MatchesContent() {
 
 export default function MatchesPage() {
     return (
-        <Suspense fallback={<div className="min-h-screen bg-black text-white font-mono flex items-center justify-center">Loading...</div>}>
+        <Suspense fallback={<div className="bg-black text-white font-mono flex items-center justify-center" style={{ height: 'calc(100vh - 3.5rem)' }}>Loading...</div>}>
             <MatchesContent />
         </Suspense>
     );
