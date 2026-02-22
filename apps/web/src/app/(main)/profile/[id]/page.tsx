@@ -206,16 +206,6 @@ export default function ProfilePage() {
             <div className="text-sm opacity-60 capitalize">{profile.animalType}</div>
             <div className="text-sm opacity-60">{profile.gender}</div>
             <div className="text-sm opacity-60">Looking for: {profile.lookingFor}</div>
-            {/* {profile.gender && (
-              <span className="px-2 py-0.5 rounded-full text-xs border" style={{ borderColor: accentColor, color: accentColor }}>
-                {profile.gender}
-              </span>
-            )}
-            {profile.lookingFor && (
-              <span className="px-2 py-0.5 rounded-full text-xs border" style={{ borderColor: accentColor, color: accentColor }}>
-                Looking for: {profile.lookingFor}
-              </span>
-            )} */}
             {profile.faith && <div className="text-xs opacity-40 mt-0.5">{profile.faith}</div>}
             {profile.politicalLeaning && <div className="text-xs opacity-40">{profile.politicalLeaning}</div>}
           </div>
