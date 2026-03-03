@@ -116,10 +116,13 @@ function MatchesContent() {
     const handleSend = async () => {
         if (!input.trim() || !activeMatchId || sending) return;
         setSending(true);
-        const msg = await matchesApi.sendMessage(activeMatchId, input.trim());
-        addMessage(activeMatchId, msg);
-        setInput('');
-        setSending(false);
+        try {
+            const msg = await matchesApi.sendMessage(activeMatchId, input.trim());
+            addMessage(activeMatchId, msg);
+            setInput('');
+        } finally {
+            setSending(false);
+        }
     };
 
     return (
