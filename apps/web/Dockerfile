@@ -10,7 +10,7 @@ RUN npm ci
 
 FROM base AS builder
 COPY . .
-RUN npx turbo run build --filter=web
+RUN npx turbo run build --filter=@dating/web
 
 FROM base AS runner
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
