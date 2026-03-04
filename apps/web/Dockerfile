@@ -9,6 +9,8 @@ COPY packages/*/package*.json ./packages/
 RUN npm ci
 
 FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 RUN npx turbo run build --filter=@dating/web
 
