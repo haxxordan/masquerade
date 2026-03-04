@@ -41,10 +41,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// CORS — Expo web + Next.js dev servers
-builder.Services.AddCors(opts => opts.AddDefaultPolicy(p =>
-    p.WithOrigins("http://localhost:3000", "http://localhost:19006")
-     .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+if (builder.Environment.IsDevelopment())
+{
+    // CORS — Expo web + Next.js dev servers
+    builder.Services.AddCors(opts => opts.AddDefaultPolicy(p =>
+        p.WithOrigins("http://localhost:3000", "http://localhost:19006")
+         .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
+}
 
 // PostgreSQL + EF Core
 builder.Services.AddDbContext<AppDbContext>(opts =>
