@@ -23,4 +23,5 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
 USER nextjs
 EXPOSE 3000
 ENV NODE_ENV=production
+ENV NEXT_PUBLIC_API_URL=""
 CMD ["node", "apps/web/server.js"]
