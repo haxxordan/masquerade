@@ -10,7 +10,7 @@ RUN npm ci
 
 FROM base AS builder
 COPY . .
-RUN npm run build  # Your turbo build script
+RUN npx turbo run build --filter=web  # ← Installs/runs turbo
 
 FROM base AS runner
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
