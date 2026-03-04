@@ -4,7 +4,7 @@ WORKDIR /src
 COPY ["apps/api/DatingApi.csproj", "apps/api/"]
 RUN dotnet restore "./apps/api/DatingApi.csproj"
 COPY . .
-WORKDIR "/src/apps/api"
+WORKDIR "/src/apps/api/DatingApi"
 RUN dotnet publish "DatingApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10 AS final
