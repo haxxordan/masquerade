@@ -22,4 +22,4 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./public
 USER nextjs
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD ["node", "server.js"]
+CMD ["node", "apps/web/server.js"]
