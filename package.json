@@ -12,6 +12,13 @@
     "type-check": "turbo run type-check"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/types": "^7.29.0",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.27.0",
+    "@types/babel__template": "^7.4.4",
+    "@types/babel__traverse": "^7.28.0",
+    "@types/estree": "^1.0.8",
     "turbo": "^2.8.13",
     "typescript": "^5.9.3"
   },

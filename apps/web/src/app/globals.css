@@ -1,4 +1,19 @@
 @import "tailwindcss";
-@import "tailwindcss/preflight";
 
-:root { --accent: #ff6699; }
+@theme {
+  --font-family-display: Georgia, serif;
+  --color-retro-bg: #000033;
+  --color-retro-text: #ff99ff;
+  --color-retro-accent: #ff6699;
+}
+
+:root {
+  --accent: #ff6699;
+}
+
+@layer base {
+  html { font-size: 16px; }
+  h1 { font-size: 2.25rem; font-weight: 700; line-height: 2.5rem; }
+  h2 { font-size: 1.875rem; font-weight: 700; }
+  h3 { font-size: 1.5rem; font-weight: 600; }
+}
