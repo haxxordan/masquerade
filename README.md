@@ -1,13 +1,13 @@
 # Masquerade
 
 ## Stack
-- **Web**: Next.js 15 (App Router) + Tailwind CSS
+- **Web**: Next.js 16 (App Router) + Tailwind CSS
 - **Mobile**: Expo SDK 52 + React Native + NativeWind
 - **Shared**: TypeScript types, API client (axios), Zustand store
 - **Backend**: .NET 10 Web API + EF Core + PostgreSQL + SignalR
 
 ## Prerequisites
-- Node 20+ and npm 10+
+- Node 22+ and npm 11+
 - .NET 10 SDK
 - PostgreSQL running locally (or Docker)
 - Expo CLI: `npm install -g expo-cli`
@@ -73,5 +73,5 @@ packages/
   api-client/ Shared Axios API client
   store/      Shared Zustand auth/match stores
 api/
-  DatingApi/  .NET 9 Web API backend
+  DatingApi/  .NET 10 Web API backend
 ```
