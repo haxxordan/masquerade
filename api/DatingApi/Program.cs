@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using DatingApi.Auth;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.Hubs;
@@ -15,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers().AddJsonOptions(opts =>
         opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.Configure<AdminAuthOptions>(builder.Configuration.GetSection("AdminAuth"));
 builder.Services.AddSwaggerGen(c =>
 {
     c.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme
@@ -45,7 +47,7 @@ if (builder.Environment.IsDevelopment())
 {
     // CORS — Expo web + Next.js dev servers
     builder.Services.AddCors(opts => opts.AddDefaultPolicy(p =>
-        p.WithOrigins("http://localhost:3000", "http://localhost:19006")
+        p.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:19006")
          .AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 }
 
@@ -60,6 +62,7 @@ builder.Services.AddIdentityCore<AppUser>(opts => opts.SignIn.RequireConfirmedAc
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]!;
+var adminJwtKey = builder.Configuration["AdminAuth:JwtKey"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {
@@ -84,10 +87,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
+    })
+    .AddJwtBearer(AdminAuthConstants.Scheme, opts =>
+    {
+        var signingKey = string.IsNullOrWhiteSpace(adminJwtKey)
+            ? "admin-auth-not-configured-change-me-before-login"
+            : adminJwtKey;
+
+        opts.TokenValidationParameters = new()
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(signingKey)),
+            ValidateIssuer = false,
+            ValidateAudience = false
+        };
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AdminAuthConstants.Policy, policy =>
+    {
+        policy.AddAuthenticationSchemes(AdminAuthConstants.Scheme);
+        policy.RequireAuthenticatedUser();
+        policy.RequireClaim(AdminAuthConstants.ClaimType, AdminAuthConstants.ClaimValue);
+    });
+});
 
 
 builder.Services.AddSignalR();
+builder.Services.AddScoped<AdminTokenService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MatchingService>();
 

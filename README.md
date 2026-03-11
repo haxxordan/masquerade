@@ -35,8 +35,21 @@ dotnet run
 ```bash
 cp apps/web/.env.example apps/web/.env.local
 cp apps/mobile/.env.example apps/mobile/.env.local
+# Optional admin portal:
+cp apps/admin/.env.example apps/admin/.env.local
 # Set NEXT_PUBLIC_API_URL and EXPO_PUBLIC_API_URL to your API address
 ```
+
+### 3a. Configure admin portal credentials
+Set these in api/DatingApi/appsettings.Development.json or via environment variables:
+
+```bash
+AdminAuth__Email=admin@example.com
+AdminAuth__Password=change-me
+AdminAuth__JwtKey=replace-with-a-long-random-secret
+```
+
+The admin portal is intentionally separate from regular app-user auth. It uses its own login endpoint and JWT scheme.
 
 ### 4. Run dev servers
 ```bash
@@ -45,12 +58,14 @@ npm run dev
 
 # Or individually:
 cd apps/web && npm run dev        # http://localhost:3000
+cd apps/admin && npm run dev      # http://localhost:3001
 cd apps/mobile && npx expo start  # Expo dev server (QR code for mobile, w for web)
 ```
 
 ## Project Structure
 ```
 apps/
+  admin/      Next.js admin portal
   web/        Next.js web app
   mobile/     Expo React Native app
 packages/
