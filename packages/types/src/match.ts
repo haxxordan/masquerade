@@ -1,4 +1,5 @@
 export type MatchStatus = 'pending' | 'matched' | 'rejected';
+export type MessageKind = 'Text' | 'System' | 'Nudge';
 
 export interface Like {
   id: string;
@@ -14,6 +15,10 @@ export interface Match {
   status: MatchStatus;
   createdAt: string;
   otherProfile?: import('./profile').Profile;
+  compatibilityScore?: number;
+  compatibilityReasons?: string[];
+  lastMessageAt?: string;
+  messageCount?: number;
 }
 
 export interface Message {
@@ -22,4 +27,6 @@ export interface Message {
   senderId: string;
   content: string;
   sentAt: string;
+  kind?: MessageKind;
+  metadataJson?: string;
 }
