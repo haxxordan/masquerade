@@ -3,18 +3,24 @@ using System.Text.Json;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
+using DatingApi.Features;
 using DatingApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DatingApi.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class ProfilesController(AppDbContext db, MatchingService matching) : ControllerBase
+public class ProfilesController(
+    AppDbContext db,
+    MatchingService matching,
+    IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
+    private readonly FeatureFlagsOptions featureFlags = featureFlagsOptions.Value;
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet("{id}")]
@@ -99,6 +105,16 @@ public class ProfilesController(AppDbContext db, MatchingService matching) : Con
 
     [HttpPost("suggest")]
     public async Task<List<ProfileDto>> Suggest(SuggestQuery query) => await matching.SuggestAsync(UserId, query);
+
+    [HttpPost("top-picks")]
+    public async Task<ActionResult<List<ProfileDto>>> TopPicks(SuggestQuery query)
+    {
+        if (!featureFlags.Matching.TopPicksV1)
+            return NotFound("Top picks are not enabled.");
+
+        var topPicks = await matching.TopPicksAsync(UserId, query);
+        return Ok(topPicks);
+    }
 
     [HttpGet("me")]
     public async Task<ActionResult<ProfileDto>> GetMe()

@@ -9,7 +9,31 @@ export default function BrowseScreen() {
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const router = useRouter();
 
-  useEffect(() => { profilesApi.suggest({}).then(setProfiles); }, []);
+  useEffect(() => {
+    const loadProfiles = async () => {
+      try {
+        const topPicks = await profilesApi.topPicks({ page: 0, pageSize: 10 });
+        setProfiles(topPicks);
+        setLikedIds(new Set(topPicks
+          .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
+          .map(p => p.id)));
+      } catch (error: unknown) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status !== 404) throw error;
+
+        const suggested = await profilesApi.suggest({});
+        setProfiles(suggested);
+        setLikedIds(new Set(suggested
+          .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
+          .map(p => p.id)));
+      }
+    };
+
+    loadProfiles().catch(err => {
+      console.error('Failed to load browse profiles:', err);
+      setProfiles([]);
+    });
+  }, []);
 
   const handleLike = async (id: string) => {
     await matchesApi.like(id);
@@ -34,6 +58,9 @@ export default function BrowseScreen() {
             <View className="p-4">
               <Text className="text-white font-bold text-lg">{p.displayName}</Text>
               <Text className="text-gray-400 text-sm mb-2">{p.animalType}</Text>
+              {!!p.compatibilityReasons?.length && (
+                <Text className="text-pink-300 text-xs mb-2">{p.compatibilityReasons[0]}</Text>
+              )}
               <View className="flex-row flex-wrap gap-1 mb-3">
                 {p.musicGenres.slice(0, 3).map(g => (
                   <View key={g} className="bg-gray-800 px-2 py-1 rounded-full">

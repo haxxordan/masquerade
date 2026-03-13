@@ -16,4 +16,7 @@ export const profilesApi = {
 
   suggest: (query: SuggestQuery) =>
     getClient().post<Profile[]>('/api/profiles/suggest', query).then(r => r.data),
+
+  topPicks: (query: SuggestQuery) =>
+    getClient().post<Profile[]>('/api/profiles/top-picks', query).then(r => r.data),
 };

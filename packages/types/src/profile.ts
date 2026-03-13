@@ -25,6 +25,8 @@ export interface Profile {
   layout: ProfileLayout;
   createdAt: string;
   likeStatus: 'None' | 'Liked' | 'Matched';
+  compatibilityScore?: number;
+  compatibilityReasons?: string[];
   gender: Gender;
   lookingFor: LookingFor;
 }

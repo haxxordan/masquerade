@@ -24,12 +24,28 @@ export default function BrowsePage() {
   const { matches, removeMatch } = useMatchStore();
 
   const bottomRef = useRef<HTMLDivElement>(null);
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE = 10;
   const [modalProfileId, setModalProfileId] = useState<string | null>(null);
   const modalProfile = profiles.find(p => p.id === modalProfileId) ?? null;
 
   const fetchPage = useCallback(async (pageNum: number) => {
-    const data = await profilesApi.suggest({ lookingFor: myLookingFor, page: pageNum, pageSize: PAGE_SIZE });
+    let data: Profile[] = [];
+
+    if (pageNum === 0) {
+      try {
+        data = await profilesApi.topPicks({ lookingFor: myLookingFor, page: 0, pageSize: PAGE_SIZE });
+      } catch (error: unknown) {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          data = await profilesApi.suggest({ lookingFor: myLookingFor, page: pageNum, pageSize: PAGE_SIZE });
+        } else {
+          throw error;
+        }
+      }
+    } else {
+      data = await profilesApi.suggest({ lookingFor: myLookingFor, page: pageNum, pageSize: PAGE_SIZE });
+    }
+
     setProfiles(prev => pageNum === 0 ? data : [...prev, ...data]);
     setLikedIds(prev => new Set([
       ...prev,
@@ -127,6 +143,11 @@ export default function BrowsePage() {
                 <div>
                   <div className="font-bold text-sm">{p.displayName}</div>
                   <div className="text-xs opacity-40 capitalize">{p.animalType}</div>
+                  {!!p.compatibilityReasons?.length && (
+                    <div className="text-[11px] text-[#ff9cbc] mt-1">
+                      {p.compatibilityReasons[0]}
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {/* Hobbies — highest match weight */}

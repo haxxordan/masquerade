@@ -58,7 +58,9 @@ public record ProfileDto(
     string? PoliticalLeaning,
     ProfileLayoutDto Layout,
     DateTime CreatedAt,
-    LikeStatus LikeStatus = LikeStatus.None
+    LikeStatus LikeStatus = LikeStatus.None,
+    int? CompatibilityScore = null,
+    List<string>? CompatibilityReasons = null
 );
 
 public record SuggestQuery(
