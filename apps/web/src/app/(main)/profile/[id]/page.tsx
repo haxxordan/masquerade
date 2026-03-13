@@ -128,6 +128,8 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [liked, setLiked] = useState(false);
   const [matched, setMatched] = useState(false);
+  const [resolvedMatchId, setResolvedMatchId] = useState<string | null>(null);
+  const [resolvingMatchId, setResolvingMatchId] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const { matches, removeMatch } = useMatchStore();
 
@@ -138,6 +140,47 @@ export default function ProfilePage() {
       setMatched(p.likeStatus === 'Matched');
     }).catch(err => console.error('Failed to load profile:', err));
   }, [id]);
+
+  useEffect(() => {
+    if (!profile || !matched) {
+      setResolvedMatchId(null);
+      return;
+    }
+
+    const existingMatch = matches.find(m =>
+      m.user1Id === profile.userId || m.user2Id === profile.userId
+    );
+
+    if (existingMatch) {
+      setResolvedMatchId(existingMatch.id);
+      return;
+    }
+
+    let cancelled = false;
+
+    const resolveFromApi = async () => {
+      setResolvingMatchId(true);
+      try {
+        const allMatches = await matchesApi.getMatches();
+        if (cancelled) return;
+
+        const foundMatch = allMatches.find(m =>
+          m.user1Id === profile.userId || m.user2Id === profile.userId
+        );
+        setResolvedMatchId(foundMatch?.id ?? null);
+      } catch (err) {
+        if (!cancelled) console.error('Failed to resolve match id:', err);
+      } finally {
+        if (!cancelled) setResolvingMatchId(false);
+      }
+    };
+
+    resolveFromApi();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, matched, matches]);
 
   if (!profile) {
     return (
@@ -220,19 +263,20 @@ export default function ProfilePage() {
               {matched ? '💖 Matched!' : liked ? '♥ Liked' : '♥ Like'}
             </button>
 
-            {matched && (() => {
-              const match = matches.find(m =>
-                m.user1Id === profile.userId || m.user2Id === profile.userId
-              );
-              return match ? (
-                <Link
-                  href={`/matches?matchId=${match.id}`}
-                  className="px-6 py-2 rounded-full text-sm font-bold border border-[#ff6699] text-[#ff6699] hover:bg-[#ff6699] hover:text-black transition"
-                >
-                  💬 messages
-                </Link>
-              ) : null;
-            })()}
+            {matched && resolvedMatchId && (
+              <Link
+                href={`/matches?matchId=${resolvedMatchId}`}
+                className="px-6 py-2 rounded-full text-sm font-bold border border-[#ff6699] text-[#ff6699] hover:bg-[#ff6699] hover:text-black transition"
+              >
+                💬 messages
+              </Link>
+            )}
+
+            {matched && !resolvedMatchId && resolvingMatchId && (
+              <span className="px-6 py-2 rounded-full text-sm font-bold border border-white/20 text-white/40">
+                finding chat...
+              </span>
+            )}
           </div>
 
         </div>

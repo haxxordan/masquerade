@@ -34,7 +34,7 @@ export function useSignalR() {
             const other = newMatch.otherProfile;
             toast(`💖 You matched with ${other?.displayName ?? 'someone'}!`, {
                 description: other?.animalType ? `A wild ${other.animalType} appears` : undefined,
-                action: { label: 'Say hi', onClick: () => window.location.href = '/matches' },
+                action: { label: 'Say hi', onClick: () => window.location.href = `/matches?matchId=${newMatch.id}` },
             });
         });
 
@@ -48,7 +48,7 @@ export function useSignalR() {
                         : message.content,
                     action: {
                         label: 'View',
-                        onClick: () => window.location.href = '/matches',
+                        onClick: () => window.location.href = `/matches?matchId=${message.matchId}`,
                     },
                 });
             }
