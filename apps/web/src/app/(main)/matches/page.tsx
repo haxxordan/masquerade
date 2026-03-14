@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { matchesApi } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
 import { useAuthStore } from '@dating/store';
-import type { Match, Message } from '@dating/types';
+import type { Match, Message, ConversationState } from '@dating/types';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -78,6 +78,9 @@ function MatchesContent() {
 
     const [input, setInput] = useState('');
     const [sending, setSending] = useState(false);
+    const [nudging, setNudging] = useState(false);
+    const [openersByMatchId, setOpenersByMatchId] = useState<Record<string, string[]>>({});
+    const [stateByMatchId, setStateByMatchId] = useState<Record<string, ConversationState | null>>({});
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const searchParams = useSearchParams();
@@ -105,6 +108,54 @@ function MatchesContent() {
         });
     }, [activeMatchId]);
 
+    // Load smart openers for selected match (flag-safe: 404 => disabled)
+    useEffect(() => {
+        if (!activeMatchId || openersByMatchId[activeMatchId]) return;
+
+        matchesApi.getOpeners(activeMatchId)
+            .then(data => {
+                setOpenersByMatchId(prev => ({
+                    ...prev,
+                    [activeMatchId]: data.suggestions,
+                }));
+            })
+            .catch((error: unknown) => {
+                const status = (error as { response?: { status?: number } })?.response?.status;
+                if (status !== 404) {
+                    console.error('Failed to load smart openers:', error);
+                }
+
+                setOpenersByMatchId(prev => ({
+                    ...prev,
+                    [activeMatchId]: [],
+                }));
+            });
+    }, [activeMatchId, openersByMatchId]);
+
+    // Load conversation stale/nudge state (flag-safe: 404 => disabled)
+    useEffect(() => {
+        if (!activeMatchId || activeMatchId in stateByMatchId) return;
+
+        matchesApi.getConversationState(activeMatchId)
+            .then((state) => {
+                setStateByMatchId(prev => ({
+                    ...prev,
+                    [activeMatchId]: state,
+                }));
+            })
+            .catch((error: unknown) => {
+                const status = (error as { response?: { status?: number } })?.response?.status;
+                if (status !== 404) {
+                    console.error('Failed to load conversation state:', error);
+                }
+
+                setStateByMatchId(prev => ({
+                    ...prev,
+                    [activeMatchId]: null,
+                }));
+            });
+    }, [activeMatchId, stateByMatchId]);
+
     // Scroll to bottom when messages update
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -112,6 +163,8 @@ function MatchesContent() {
 
     const activeMatch = matches.find(m => m.id === activeMatchId) ?? null;
     const activeMessages = activeMatchId ? (messages[activeMatchId] ?? []) : [];
+    const activeOpeners = activeMatchId ? (openersByMatchId[activeMatchId] ?? []) : [];
+    const activeState = activeMatchId ? (stateByMatchId[activeMatchId] ?? null) : null;
 
     const handleSend = async () => {
         if (!input.trim() || !activeMatchId || sending) return;
@@ -120,8 +173,40 @@ function MatchesContent() {
             const msg = await matchesApi.sendMessage(activeMatchId, input.trim());
             addMessage(activeMatchId, msg);
             setInput('');
+
+            const updatedState = await matchesApi.getConversationState(activeMatchId)
+                .catch((error: unknown) => {
+                    const status = (error as { response?: { status?: number } })?.response?.status;
+                    if (status !== 404) {
+                        console.error('Failed to refresh conversation state:', error);
+                    }
+                    return null;
+                });
+
+            setStateByMatchId(prev => ({
+                ...prev,
+                [activeMatchId]: updatedState,
+            }));
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleSendNudge = async () => {
+        if (!activeMatchId || nudging || !activeState?.canNudge) return;
+
+        setNudging(true);
+        try {
+            const response = await matchesApi.sendNudge(activeMatchId);
+            addMessage(activeMatchId, response.message);
+            setStateByMatchId(prev => ({
+                ...prev,
+                [activeMatchId]: response.state,
+            }));
+        } catch (error) {
+            console.error('Failed to send nudge:', error);
+        } finally {
+            setNudging(false);
         }
     };
 
@@ -212,22 +297,51 @@ function MatchesContent() {
                         </div>
 
                         {/* Input */}
-                        <div className="px-5 py-3 border-t border-white/10 flex gap-3">
-                            <input
-                                className="flex-1 bg-white/5 rounded-full px-4 py-2 text-sm outline-none border border-white/10 focus:border-[#ff6699] transition"
-                                placeholder="say something..."
-                                value={input}
-                                onChange={e => setInput(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                            />
-                            <button
-                                onClick={handleSend}
-                                disabled={!input.trim() || sending}
-                                className="px-5 py-2 rounded-full text-sm font-bold transition disabled:opacity-30"
-                                style={{ backgroundColor: '#ff6699', color: '#000' }}
-                            >
-                                send
-                            </button>
+                        <div className="px-5 py-3 border-t border-white/10">
+                            {activeMessages.length === 0 && activeOpeners.length > 0 && (
+                                <div className="mb-3 flex flex-wrap gap-2">
+                                    {activeOpeners.map(opener => (
+                                        <button
+                                            key={opener}
+                                            onClick={() => setInput(opener)}
+                                            className="text-xs px-3 py-1.5 rounded-full border border-[#ff6699]/60 text-[#ff9cbc] hover:bg-[#ff6699]/15 transition"
+                                        >
+                                            {opener}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+
+                            {activeState?.isStale && (
+                                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#ff6699]/30 bg-[#ff6699]/10 px-3 py-2">
+                                    <p className="text-xs text-[#ffb3ca] truncate">{activeState.suggestedNudge}</p>
+                                    <button
+                                        onClick={handleSendNudge}
+                                        disabled={!activeState.canNudge || nudging}
+                                        className="px-3 py-1.5 rounded-full text-xs font-bold border border-[#ff6699] text-[#ff9cbc] hover:bg-[#ff6699]/20 disabled:opacity-40 transition"
+                                    >
+                                        {nudging ? 'sending...' : activeState.canNudge ? 'send nudge' : 'nudge cooling down'}
+                                    </button>
+                                </div>
+                            )}
+
+                            <div className="flex gap-3">
+                                <input
+                                    className="flex-1 bg-white/5 rounded-full px-4 py-2 text-sm outline-none border border-white/10 focus:border-[#ff6699] transition"
+                                    placeholder="say something..."
+                                    value={input}
+                                    onChange={e => setInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && handleSend()}
+                                />
+                                <button
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || sending}
+                                    className="px-5 py-2 rounded-full text-sm font-bold transition disabled:opacity-30"
+                                    style={{ backgroundColor: '#ff6699', color: '#000' }}
+                                >
+                                    send
+                                </button>
+                            </div>
                         </div>
                     </>
                 )}

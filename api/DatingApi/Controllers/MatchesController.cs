@@ -2,20 +2,28 @@ using System.Security.Claims;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
+using DatingApi.Features;
 using DatingApi.Hubs;
 using DatingApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DatingApi.Controllers;
 
 [Authorize]
 [ApiController]
 [Route("api/[controller]")]
-public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : ControllerBase
+public class MatchesController(
+    AppDbContext db,
+    IHubContext<MatchHub> hub,
+    SmartOpenersService smartOpeners,
+    ConversationNudgeService nudgeService,
+    IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
+    private readonly FeatureFlagsOptions featureFlags = featureFlagsOptions.Value;
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpPost("like/{likeeId}")]
@@ -153,8 +161,65 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
         return await db.Messages
             .Where(m => m.MatchId == matchId)
             .OrderBy(m => m.SentAt)
-            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId, m.Content, m.SentAt))
+            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId, m.Content, m.SentAt, m.Kind, m.MetadataJson))
             .ToListAsync();
+    }
+
+    [HttpGet("{matchId}/state")]
+    public async Task<ActionResult<ConversationStateDto>> GetState(string matchId)
+    {
+        if (!featureFlags.Messaging.StallNudgesV1)
+            return NotFound("Conversation nudges are not enabled.");
+
+        var match = await db.Matches.FindAsync(matchId);
+        if (match == null)
+            return NotFound();
+
+        if (match.User1Id != UserId && match.User2Id != UserId)
+            return Forbid();
+
+        var state = await nudgeService.GetStateAsync(match, UserId);
+        return Ok(state);
+    }
+
+    [HttpGet("{matchId}/openers")]
+    public async Task<ActionResult<OpenerSuggestionsDto>> GetOpeners(string matchId)
+    {
+        if (!featureFlags.Messaging.SmartOpenersV1)
+            return NotFound("Smart openers are not enabled.");
+
+        var match = await db.Matches.FindAsync(matchId);
+        if (match == null)
+            return NotFound();
+
+        if (match.User1Id != UserId && match.User2Id != UserId)
+            return Forbid();
+
+        var suggestions = await smartOpeners.GenerateForMatchAsync(UserId, match);
+        return Ok(new OpenerSuggestionsDto(suggestions));
+    }
+
+    [HttpPost("{matchId}/nudge")]
+    public async Task<ActionResult<NudgeResponseDto>> SendNudge(string matchId)
+    {
+        if (!featureFlags.Messaging.StallNudgesV1)
+            return NotFound("Conversation nudges are not enabled.");
+
+        var match = await db.Matches.FindAsync(matchId);
+        if (match == null)
+            return NotFound();
+
+        if (match.User1Id != UserId && match.User2Id != UserId)
+            return Forbid();
+
+        var response = await nudgeService.SendNudgeAsync(match, UserId);
+        if (response == null)
+            return BadRequest("This conversation is not eligible for a nudge yet.");
+
+        var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
+        await hub.Clients.User(recipientId).SendAsync("NewMessage", response.Message);
+
+        return Ok(response);
     }
 
     [HttpPost("{matchId}/messages")]
@@ -168,7 +233,17 @@ public class MatchesController(AppDbContext db, IHubContext<MatchHub> hub) : Con
         db.Messages.Add(message);
         await db.SaveChangesAsync();
 
-        var dto = new MessageDto(message.Id, message.MatchId, message.SenderId, message.Content, message.SentAt);
+        await nudgeService.RecordMessageAsync(match, UserId, message.SentAt);
+        await db.SaveChangesAsync();
+
+        var dto = new MessageDto(
+            message.Id,
+            message.MatchId,
+            message.SenderId,
+            message.Content,
+            message.SentAt,
+            message.Kind,
+            message.MetadataJson);
         var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
         await hub.Clients.User(recipientId).SendAsync("NewMessage", dto);
 

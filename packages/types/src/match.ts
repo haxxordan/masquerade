@@ -30,3 +30,22 @@ export interface Message {
   kind?: MessageKind;
   metadataJson?: string;
 }
+
+export interface OpenerSuggestions {
+  suggestions: string[];
+}
+
+export interface ConversationState {
+  matchId: string;
+  firstMessageAt?: string;
+  firstReplyAt?: string;
+  lastNudgedAt?: string;
+  isStale: boolean;
+  canNudge: boolean;
+  suggestedNudge: string;
+}
+
+export interface NudgeResponse {
+  message: Message;
+  state: ConversationState;
+}

@@ -120,6 +120,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<AdminTokenService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MatchingService>();
+builder.Services.AddScoped<SmartOpenersService>();
+builder.Services.AddScoped<ConversationNudgeService>();
 
 var app = builder.Build();
 

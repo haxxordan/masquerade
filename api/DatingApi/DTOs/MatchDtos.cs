@@ -26,4 +26,17 @@ public record MessageDto(
     MessageKind Kind = MessageKind.Text,
     string? MetadataJson = null
 );
+
+public record OpenerSuggestionsDto(List<string> Suggestions);
+public record ConversationStateDto(
+    string MatchId,
+    DateTime? FirstMessageAt,
+    DateTime? FirstReplyAt,
+    DateTime? LastNudgedAt,
+    bool IsStale,
+    bool CanNudge,
+    string SuggestedNudge
+);
+
+public record NudgeResponseDto(MessageDto Message, ConversationStateDto State);
 public record SendMessageRequest(string Content);
