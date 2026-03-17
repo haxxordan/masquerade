@@ -12,12 +12,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<Match> Matches => Set<Match>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<ConversationState> ConversationStates => Set<ConversationState>();
+    public DbSet<Block> Blocks => Set<Block>();
+    public DbSet<Report> Reports => Set<Report>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
 
         builder.Entity<Like>().HasKey(l => new { l.LikerId, l.LikeeId });
+
+        builder.Entity<Block>().HasKey(b => new { b.BlockerId, b.BlockedId });
 
         builder.Entity<Profile>()
             .HasIndex(p => p.UserId)

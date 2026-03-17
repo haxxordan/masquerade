@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AdminDashboardSummary, AdminDailyFunnelPoint, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminUserDetail, AdminUserListItem } from '@dating/types';
+import type { AdminDashboardSummary, AdminDailyFunnelPoint, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminReport, AdminUserDetail, AdminUserListItem } from '@dating/types';
 import { adminApi } from '@/lib/adminApi';
 import { clearAdminSession, getStoredAdminSession } from '@/lib/adminAuth';
 
@@ -106,6 +106,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [funnelMetrics, setFunnelMetrics] = useState<AdminFunnelMetrics | null>(null);
   const [dailyMetrics, setDailyMetrics] = useState<AdminDailyFunnelPoint[]>([]);
+  const [reports, setReports] = useState<AdminReport[]>([]);
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -137,11 +138,12 @@ export default function DashboardPage() {
 
     async function load() {
       try {
-        const [summaryResponse, usersResponse, funnelResponse, dailyResponse] = await Promise.all([
+        const [summaryResponse, usersResponse, funnelResponse, dailyResponse, reportsResponse] = await Promise.all([
           adminApi.getSummary(),
           adminApi.getUsers(),
           adminApi.getFunnelMetrics(),
           adminApi.getDailyMetrics(),
+          adminApi.getReports(),
         ]);
 
         if (ignore) {
@@ -152,6 +154,7 @@ export default function DashboardPage() {
         setUsers(usersResponse);
         setFunnelMetrics(funnelResponse);
         setDailyMetrics(dailyResponse);
+        setReports(reportsResponse);
         startTransition(() => {
           setSelectedUserId(usersResponse[0]?.userId ?? null);
         });
@@ -293,6 +296,58 @@ export default function DashboardPage() {
             </div>
           </div>
         ) : null}
+      </section>
+
+      <section className="glass-panel funnel-section">
+        <div className="row-title">
+          <div>
+            <div className="eyebrow">Safety</div>
+            <h2 style={{ margin: '4px 0 0' }}>User reports</h2>
+          </div>
+          <span className="subtle-badge">
+            {reports.filter(r => !r.isReviewed).length} pending
+          </span>
+        </div>
+
+        {reports.length === 0 ? (
+          <p className="muted" style={{ marginTop: 16 }}>No reports filed yet.</p>
+        ) : (
+          <ul className="detail-list" style={{ marginTop: 16, maxHeight: '40vh', overflow: 'auto' }}>
+            {reports.map((report) => (
+              <li key={report.id}>
+                <div className="detail-meta">
+                  <div>
+                    <span className="badge" style={report.isReviewed ? { background: 'rgba(255,255,255,0.06)', color: 'var(--muted)' } : undefined}>
+                      {report.reason}
+                    </span>
+                    {report.isReviewed && <span className="subtle-badge" style={{ marginLeft: 6 }}>Reviewed</span>}
+                  </div>
+                  <span className="subtle-badge">{formatDate(report.createdAt)}</span>
+                </div>
+                <p className="muted" style={{ margin: '6px 0 2px', fontSize: '0.85rem' }}>
+                  <strong style={{ color: 'var(--paper)' }}>{report.reporterEmail ?? report.reporterId.slice(0, 8)}</strong>
+                  {' → '}
+                  <strong style={{ color: 'var(--paper)' }}>{report.reportedEmail ?? report.reportedId.slice(0, 8)}</strong>
+                </p>
+                {report.details && <p className="muted" style={{ fontSize: '0.8rem', margin: '2px 0' }}>{report.details}</p>}
+                {report.adminNote && <p className="muted" style={{ fontSize: '0.8rem', margin: '2px 0', fontStyle: 'italic' }}>Note: {report.adminNote}</p>}
+                {!report.isReviewed && (
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    style={{ marginTop: 8, padding: '6px 14px', fontSize: '0.8rem' }}
+                    onClick={async () => {
+                      await adminApi.reviewReport(report.id);
+                      setReports(prev => prev.map(r => r.id === report.id ? { ...r, isReviewed: true, reviewedAt: new Date().toISOString() } : r));
+                    }}
+                  >
+                    Mark reviewed
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="main-grid">

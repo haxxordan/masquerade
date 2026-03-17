@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-
 namespace DatingApi.Controllers;
 
 [Authorize]
@@ -127,6 +126,61 @@ public class ProfilesController(
             return NotFound();
 
         return MatchingService.MapToDto(profile);
+    }
+
+    [HttpPost("{userId}/block")]
+    public async Task<IActionResult> Block(string userId)
+    {
+        if (userId == UserId) return BadRequest("You cannot block yourself.");
+
+        var exists = await db.Blocks.AnyAsync(b => b.BlockerId == UserId && b.BlockedId == userId);
+        if (exists) return Ok(); // idempotent
+
+        db.Blocks.Add(new Block { BlockerId = UserId, BlockedId = userId });
+        await db.SaveChangesAsync();
+        return Ok();
+    }
+
+    [HttpDelete("{userId}/block")]
+    public async Task<IActionResult> Unblock(string userId)
+    {
+        var block = await db.Blocks.FindAsync(UserId, userId);
+        if (block == null) return Ok(); // idempotent
+
+        db.Blocks.Remove(block);
+        await db.SaveChangesAsync();
+        return Ok();
+    }
+
+    [HttpGet("blocked")]
+    public async Task<ActionResult<IReadOnlyList<string>>> GetBlocked()
+    {
+        var ids = await db.Blocks
+            .Where(b => b.BlockerId == UserId)
+            .Select(b => b.BlockedId)
+            .ToListAsync();
+
+        return Ok(ids);
+    }
+
+    [HttpPost("{userId}/report")]
+    public async Task<IActionResult> ReportUser(string userId, ReportRequest request)
+    {
+        if (userId == UserId) return BadRequest("You cannot report yourself.");
+
+        if (!Enum.TryParse<ReportReason>(request.Reason, ignoreCase: true, out var reason))
+            return BadRequest($"Invalid reason. Valid values: {string.Join(", ", Enum.GetNames<ReportReason>())}");
+
+        db.Reports.Add(new Report
+        {
+            ReporterId = UserId,
+            ReportedId = userId,
+            Reason = reason,
+            Details = request.Details,
+        });
+
+        await db.SaveChangesAsync();
+        return Ok();
     }
 
 }

@@ -63,6 +63,8 @@ public record ProfileDto(
     List<string>? CompatibilityReasons = null
 );
 
+public sealed record ReportRequest(string Reason, string? Details);
+
 public record SuggestQuery(
     string? LookingFor,
     int Page = 0,

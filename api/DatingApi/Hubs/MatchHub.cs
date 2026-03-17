@@ -1,16 +1,45 @@
+using DatingApi.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace DatingApi.Hubs;
 
 [Authorize]
-public class MatchHub : Hub
+public class MatchHub(AppDbContext db) : Hub
 {
     // Clients subscribe to their own UserId group via query param or JWT sub claim.
-    // Real-time events: NewMatch, NewMessage
+    // Real-time events: NewMatch, NewMessage, TypingStarted, TypingStopped
     public override async Task OnConnectedAsync()
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, Context.UserIdentifier!);
         await base.OnConnectedAsync();
+    }
+
+    public async Task StartTyping(string matchId)
+    {
+        var otherUserId = await GetOtherUserIdAsync(matchId);
+        if (otherUserId != null)
+            await Clients.Group(otherUserId).SendAsync("TypingStarted", matchId);
+    }
+
+    public async Task StopTyping(string matchId)
+    {
+        var otherUserId = await GetOtherUserIdAsync(matchId);
+        if (otherUserId != null)
+            await Clients.Group(otherUserId).SendAsync("TypingStopped", matchId);
+    }
+
+    private async Task<string?> GetOtherUserIdAsync(string matchId)
+    {
+        var myId = Context.UserIdentifier!;
+        var match = await db.Matches
+            .AsNoTracking()
+            .Where(m => m.Id == matchId && (m.User1Id == myId || m.User2Id == myId))
+            .Select(m => new { m.User1Id, m.User2Id })
+            .FirstOrDefaultAsync();
+
+        if (match == null) return null;
+        return match.User1Id == myId ? match.User2Id : match.User1Id;
     }
 }

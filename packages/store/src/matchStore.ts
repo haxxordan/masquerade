@@ -6,6 +6,7 @@ interface MatchState {
   activeMatchId: string | null;
   messages: Record<string, Message[]>;
   unreadMatchIds: Set<string>;
+  typingByMatchId: Record<string, boolean>;
   setMatches: (matches: Match[]) => void;
   addMatch: (match: Match) => void;
   removeMatch: (matchId: string) => void;
@@ -14,6 +15,7 @@ interface MatchState {
   addMessage: (matchId: string, message: Message) => void;
   markRead: (matchId: string) => void;
   clearUnread: () => void;
+  setTyping: (matchId: string, isTyping: boolean) => void;
 }
 
 export const useMatchStore = create<MatchState>((set) => ({
@@ -21,6 +23,7 @@ export const useMatchStore = create<MatchState>((set) => ({
   activeMatchId: null,
   messages: {},
   unreadMatchIds: new Set(),
+  typingByMatchId: {},
   setMatches: (matches) => set({ matches }),
   addMatch: (match) => set((s) => ({ matches: [match, ...s.matches] })),
   removeMatch: (matchId: string) =>
@@ -47,4 +50,6 @@ export const useMatchStore = create<MatchState>((set) => ({
       return { unreadMatchIds: next };
     }),
   clearUnread: () => set({ unreadMatchIds: new Set() }),
+  setTyping: (matchId, isTyping) =>
+    set((s) => ({ typingByMatchId: { ...s.typingByMatchId, [matchId]: isTyping } })),
 }));

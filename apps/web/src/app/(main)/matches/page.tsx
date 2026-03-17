@@ -9,6 +9,7 @@ import { useAuthStore } from '@dating/store';
 import type { Match, Message, ConversationState } from '@dating/types';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
+import { hubConnection } from '@/lib/hubConnection';
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
@@ -73,7 +74,8 @@ function MatchesContent() {
         matches, activeMatchId,
         setMatches, setActiveMatch,
         messages, setMessages, addMessage,
-        markRead
+        markRead,
+        typingByMatchId,
     } = useMatchStore();
 
     const [input, setInput] = useState('');
@@ -81,6 +83,7 @@ function MatchesContent() {
     const [nudging, setNudging] = useState(false);
     const [openersByMatchId, setOpenersByMatchId] = useState<Record<string, string[]>>({});
     const [stateByMatchId, setStateByMatchId] = useState<Record<string, ConversationState | null>>({});
+    const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const bottomRef = useRef<HTMLDivElement>(null);
 
     const searchParams = useSearchParams();
@@ -165,10 +168,27 @@ function MatchesContent() {
     const activeMessages = activeMatchId ? (messages[activeMatchId] ?? []) : [];
     const activeOpeners = activeMatchId ? (openersByMatchId[activeMatchId] ?? []) : [];
     const activeState = activeMatchId ? (stateByMatchId[activeMatchId] ?? null) : null;
+    const isOtherTyping = activeMatchId ? (typingByMatchId[activeMatchId] ?? false) : false;
+
+    const handleInputChange = (value: string) => {
+        setInput(value);
+        if (!activeMatchId) return;
+
+        hubConnection.current?.invoke('StartTyping', activeMatchId).catch(() => { /* best-effort */ });
+
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        typingTimerRef.current = setTimeout(() => {
+            hubConnection.current?.invoke('StopTyping', activeMatchId).catch(() => { /* best-effort */ });
+        }, 3000);
+    };
 
     const handleSend = async () => {
         if (!input.trim() || !activeMatchId || sending) return;
         setSending(true);
+
+        // Stop typing indicator immediately on send
+        if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+        hubConnection.current?.invoke('StopTyping', activeMatchId).catch(() => { /* best-effort */ });
         try {
             const msg = await matchesApi.sendMessage(activeMatchId, input.trim());
             addMessage(activeMatchId, msg);
@@ -265,7 +285,13 @@ function MatchesContent() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="text-sm font-semibold">{activeMatch.otherProfile?.displayName}</div>
-                                <div className="text-xs opacity-40 capitalize">{activeMatch.otherProfile?.animalType}</div>
+                                <div className="text-xs opacity-40 capitalize">
+                                    {isOtherTyping ? (
+                                        <span style={{ color: '#ff6699' }}>typing...</span>
+                                    ) : (
+                                        activeMatch.otherProfile?.animalType
+                                    )}
+                                </div>
                             </div>
                             {activeMatch.otherProfile && (
                                 <Link
@@ -330,7 +356,7 @@ function MatchesContent() {
                                     className="flex-1 bg-white/5 rounded-full px-4 py-2 text-sm outline-none border border-white/10 focus:border-[#ff6699] transition"
                                     placeholder="say something..."
                                     value={input}
-                                    onChange={e => setInput(e.target.value)}
+                                    onChange={e => handleInputChange(e.target.value)}
                                     onKeyDown={e => e.key === 'Enter' && handleSend()}
                                 />
                                 <button

@@ -4,6 +4,7 @@ import type {
   AdminDailyFunnelPoint,
   AdminFunnelMetrics,
   AdminLoginRequest,
+  AdminReport,
   AdminUserDetail,
   AdminUserListItem,
 } from '@dating/types';
@@ -56,4 +57,12 @@ export const adminApi = {
   getFunnelMetrics: () => request<AdminFunnelMetrics>('/api/admin/metrics/funnel'),
 
   getDailyMetrics: () => request<AdminDailyFunnelPoint[]>('/api/admin/metrics/daily'),
+
+  getReports: () => request<AdminReport[]>('/api/admin/reports'),
+
+  reviewReport: (reportId: string, adminNote?: string) =>
+    request<void>(`/api/admin/reports/${reportId}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ adminNote: adminNote ?? null }),
+    }),
 };

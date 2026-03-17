@@ -230,4 +230,47 @@ public class AdminController(AppDbContext db) : ControllerBase
 
         return Ok(result);
     }
+
+    [HttpGet("reports")]
+    public async Task<ActionResult<IReadOnlyList<AdminReportDto>>> GetReports()
+    {
+        var reports = await db.Reports.AsNoTracking()
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        var userIds = reports.SelectMany(r => new[] { r.ReporterId, r.ReportedId }).Distinct().ToList();
+
+        var emailsByUserId = await db.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.Email ?? string.Empty);
+
+        var dtos = reports.Select(r => new AdminReportDto(
+            r.Id,
+            r.Reason.ToString(),
+            r.Details,
+            r.ReporterId,
+            emailsByUserId.GetValueOrDefault(r.ReporterId),
+            r.ReportedId,
+            emailsByUserId.GetValueOrDefault(r.ReportedId),
+            r.CreatedAt,
+            r.IsReviewed,
+            r.ReviewedAt,
+            r.AdminNote)).ToList();
+
+        return Ok(dtos);
+    }
+
+    [HttpPost("reports/{reportId}/review")]
+    public async Task<IActionResult> ReviewReport(string reportId, AdminReportReviewRequest request)
+    {
+        var report = await db.Reports.FindAsync(reportId);
+        if (report == null) return NotFound();
+
+        report.IsReviewed = true;
+        report.ReviewedAt = DateTime.UtcNow;
+        report.AdminNote = request.AdminNote;
+        await db.SaveChangesAsync();
+
+        return Ok();
+    }
 }

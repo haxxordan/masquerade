@@ -54,6 +54,11 @@ public class MatchingService(AppDbContext db, IOptions<FeatureFlagsOptions> feat
             .Select(m => m.User1Id == requestingUserId ? m.User2Id : m.User1Id)
             .ToHashSetAsync();
 
+        var blockedUserIds = await db.Blocks
+            .Where(b => b.BlockerId == requestingUserId || b.BlockedId == requestingUserId)
+            .Select(b => b.BlockerId == requestingUserId ? b.BlockedId : b.BlockerId)
+            .ToHashSetAsync();
+
         // Use the requesting user's own tags as the baseline for scoring
         var myMusic = me?.Tags
             .Where(t => t.Category == TagCategory.Music)
@@ -66,6 +71,7 @@ public class MatchingService(AppDbContext db, IOptions<FeatureFlagsOptions> feat
             .ToHashSet() ?? [];
 
         var scored = profiles
+            .Where(p => !blockedUserIds.Contains(p.UserId))
             .Select(p =>
             {
                 var musicScore = p.Tags.Count(t => t.Category == TagCategory.Music && myMusic.Contains(t.Value)) * 2;

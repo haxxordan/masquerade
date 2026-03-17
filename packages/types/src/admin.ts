@@ -73,3 +73,19 @@ export interface AdminDailyFunnelPoint {
   firstReplies: number;
   nudgesSent: number;
 }
+
+export type AdminReportReason = 'Spam' | 'Harassment' | 'FakeProfile' | 'Other';
+
+export interface AdminReport {
+  id: string;
+  reason: AdminReportReason;
+  details: string | null;
+  reporterId: string;
+  reporterEmail: string | null;
+  reportedId: string;
+  reportedEmail: string | null;
+  createdAt: string;
+  isReviewed: boolean;
+  reviewedAt: string | null;
+  adminNote: string | null;
+}

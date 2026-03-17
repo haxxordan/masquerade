@@ -7,10 +7,11 @@ import { useMatchStore } from '@dating/store';
 import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
 import { Match } from '@dating/types';
+import { hubConnection } from '@/lib/hubConnection';
 
 export function useSignalR() {
     const { token } = useAuthStore();
-    const { addMatch, addMessage } = useMatchStore();
+    const { addMatch, addMessage, setTyping } = useMatchStore();
     const pathname = usePathname();
     const connectionRef = useRef<signalR.HubConnection | null>(null);
     const pathnameRef = useRef(pathname);
@@ -64,6 +65,14 @@ export function useSignalR() {
             });
         });
 
+        connection.on('TypingStarted', (matchId: string) => {
+            setTyping(matchId, true);
+        });
+
+        connection.on('TypingStopped', (matchId: string) => {
+            setTyping(matchId, false);
+        });
+
         connection.start()
             .then(() => {
                 if (cancelled) {
@@ -72,6 +81,7 @@ export function useSignalR() {
                     return;
                 }
                 connectionRef.current = connection;
+                hubConnection.current = connection;
             })
             .catch((err) => {
                 if (!cancelled) {
@@ -85,6 +95,7 @@ export function useSignalR() {
             if (connectionRef.current) {
                 connectionRef.current.stop();
                 connectionRef.current = null;
+                hubConnection.current = null;
             }
         };
     }, [token]);

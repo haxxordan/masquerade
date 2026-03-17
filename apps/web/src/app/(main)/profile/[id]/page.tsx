@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { profilesApi, matchesApi } from '@dating/api-client';
+import type { ReportReason } from '@dating/api-client';
 import type { Profile } from '@dating/types';
 import { WidgetPanel } from '@/components/profile';
 import { UnlikeModal } from '@/components/UnlikeModal';
@@ -131,6 +132,11 @@ export default function ProfilePage() {
   const [resolvedMatchId, setResolvedMatchId] = useState<string | null>(null);
   const [resolvingMatchId, setResolvingMatchId] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState<ReportReason>('Spam');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSent, setReportSent] = useState(false);
   const { matches, removeMatch } = useMatchStore();
 
   useEffect(() => {
@@ -215,6 +221,17 @@ export default function ProfilePage() {
     setModalOpen(false);
   };
 
+  const handleBlock = async () => {
+    await profilesApi.block(profile.userId);
+    setBlocked(true);
+  };
+
+  const handleSendReport = async () => {
+    await profilesApi.report(profile.userId, reportReason, reportDetails || undefined);
+    setReportSent(true);
+    setReportOpen(false);
+  };
+
   return (
     <div className={`min-h-screen ${themeClass} font-mono`}>
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -254,7 +271,7 @@ export default function ProfilePage() {
           </div>
 
           {/* ── Like button ── */}
-          <div className="flex gap-3 mt-4">
+          <div className="flex gap-3 mt-4 flex-wrap">
             <button
               onClick={() => liked ? setModalOpen(true) : handleLike()}
               className={`px-6 py-2 rounded-full font-bold text-sm transition ${liked ? 'bg-gray-700 text-gray-500 hover:bg-red-900/50 hover:text-red-400' : 'bg-pink-500 hover:bg-pink-600 text-white'
@@ -277,7 +294,71 @@ export default function ProfilePage() {
                 finding chat...
               </span>
             )}
+
+            {!blocked ? (
+              <button
+                onClick={handleBlock}
+                className="px-4 py-2 rounded-full text-xs border border-white/20 text-white/40 hover:border-red-500/60 hover:text-red-400 transition"
+              >
+                block
+              </button>
+            ) : (
+              <span className="px-4 py-2 rounded-full text-xs border border-red-500/40 text-red-400">
+                blocked
+              </span>
+            )}
+
+            {!reportSent ? (
+              <button
+                onClick={() => setReportOpen(o => !o)}
+                className="px-4 py-2 rounded-full text-xs border border-white/20 text-white/40 hover:border-yellow-500/60 hover:text-yellow-400 transition"
+              >
+                report
+              </button>
+            ) : (
+              <span className="px-4 py-2 rounded-full text-xs border border-yellow-500/40 text-yellow-400">
+                reported
+              </span>
+            )}
           </div>
+
+          {reportOpen && (
+            <div className="mt-4 p-4 rounded-2xl border border-white/10 bg-white/5 flex flex-col gap-3">
+              <div className="text-xs font-semibold opacity-60">Report reason</div>
+              <div className="flex flex-wrap gap-2">
+                {(['Spam', 'Harassment', 'FakeProfile', 'Other'] as ReportReason[]).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setReportReason(r)}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition ${reportReason === r ? 'border-yellow-400 text-yellow-400' : 'border-white/20 text-white/40 hover:border-white/40'}`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <textarea
+                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-yellow-400/60 resize-none"
+                rows={2}
+                placeholder="Optional details..."
+                value={reportDetails}
+                onChange={e => setReportDetails(e.target.value)}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSendReport}
+                  className="px-4 py-1.5 rounded-full text-xs font-bold bg-yellow-500/20 border border-yellow-400/60 text-yellow-300 hover:bg-yellow-500/30 transition"
+                >
+                  submit report
+                </button>
+                <button
+                  onClick={() => setReportOpen(false)}
+                  className="px-4 py-1.5 rounded-full text-xs border border-white/20 text-white/40 hover:border-white/40 transition"
+                >
+                  cancel
+                </button>
+              </div>
+            </div>
+          )}
 
         </div>
 

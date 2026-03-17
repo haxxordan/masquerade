@@ -70,3 +70,18 @@ public sealed record DailyFunnelPointDto(
     int FirstMessages,
     int FirstReplies,
     int NudgesSent);
+
+public sealed record AdminReportDto(
+    string Id,
+    string Reason,
+    string? Details,
+    string ReporterId,
+    string? ReporterEmail,
+    string ReportedId,
+    string? ReportedEmail,
+    DateTime CreatedAt,
+    bool IsReviewed,
+    DateTime? ReviewedAt,
+    string? AdminNote);
+
+public sealed record AdminReportReviewRequest(string? AdminNote);
