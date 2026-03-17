@@ -57,3 +57,19 @@ export interface AdminUserDetail extends Omit<AdminUserListItem, 'likesSent' | '
   likesReceived: AdminLikeDetail[];
   matches: AdminMatchDetail[];
 }
+
+export interface AdminFunnelMetrics {
+  matchedCount: number;
+  firstMessagedCount: number;
+  firstRepliedCount: number;
+  staleChatCount: number;
+  nudgesSentCount: number;
+}
+
+export interface AdminDailyFunnelPoint {
+  date: string;
+  newMatches: number;
+  firstMessages: number;
+  firstReplies: number;
+  nudgesSent: number;
+}

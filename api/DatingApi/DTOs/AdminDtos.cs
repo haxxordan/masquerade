@@ -56,3 +56,17 @@ public sealed record AdminUserDetailDto(
     IReadOnlyList<AdminLikeDetailDto> LikesSent,
     IReadOnlyList<AdminLikeDetailDto> LikesReceived,
     IReadOnlyList<AdminMatchDetailDto> Matches);
+
+public sealed record FunnelMetricsDto(
+    int MatchedCount,
+    int FirstMessagedCount,
+    int FirstRepliedCount,
+    int StaleChatCount,
+    int NudgesSentCount);
+
+public sealed record DailyFunnelPointDto(
+    string Date,
+    int NewMatches,
+    int FirstMessages,
+    int FirstReplies,
+    int NudgesSent);

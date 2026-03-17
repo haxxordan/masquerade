@@ -1,6 +1,8 @@
 import type {
   AdminAuthResponse,
   AdminDashboardSummary,
+  AdminDailyFunnelPoint,
+  AdminFunnelMetrics,
   AdminLoginRequest,
   AdminUserDetail,
   AdminUserListItem,
@@ -50,4 +52,8 @@ export const adminApi = {
   getUsers: () => request<AdminUserListItem[]>('/api/admin/users'),
 
   getUserDetail: (userId: string) => request<AdminUserDetail>(`/api/admin/users/${userId}`),
+
+  getFunnelMetrics: () => request<AdminFunnelMetrics>('/api/admin/metrics/funnel'),
+
+  getDailyMetrics: () => request<AdminDailyFunnelPoint[]>('/api/admin/metrics/daily'),
 };

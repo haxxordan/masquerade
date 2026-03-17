@@ -1,5 +1,6 @@
 using DatingApi.Auth;
 using DatingApi.Data;
+using DatingApi.Domain;
 using DatingApi.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -169,5 +170,64 @@ public class AdminController(AppDbContext db) : ControllerBase
             profile?.Id,
             profile?.DisplayName,
             profile?.AnimalType);
+    }
+
+    [HttpGet("metrics/funnel")]
+    public async Task<ActionResult<FunnelMetricsDto>> GetFunnelMetrics()
+    {
+        var matchedCount = await db.Matches.AsNoTracking().CountAsync();
+        var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
+        var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
+        var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
+        var nudgesSentCount = await db.Messages.AsNoTracking().CountAsync(x => x.Kind == MessageKind.Nudge);
+
+        return Ok(new FunnelMetricsDto(matchedCount, firstMessagedCount, firstRepliedCount, staleChatCount, nudgesSentCount));
+    }
+
+    [HttpGet("metrics/daily")]
+    public async Task<ActionResult<IReadOnlyList<DailyFunnelPointDto>>> GetDailyMetrics()
+    {
+        var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+        var since = today.AddDays(-29);
+
+        var recentMatchDates = await db.Matches.AsNoTracking()
+            .Where(x => x.CreatedAt >= since)
+            .Select(x => x.CreatedAt)
+            .ToListAsync();
+
+        var recentStates = await db.ConversationStates.AsNoTracking()
+            .Where(x => (x.FirstMessageAt != null && x.FirstMessageAt >= since) ||
+                        (x.FirstReplyAt != null && x.FirstReplyAt >= since))
+            .Select(x => new { x.FirstMessageAt, x.FirstReplyAt })
+            .ToListAsync();
+
+        var recentNudgeDates = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind == MessageKind.Nudge && x.SentAt >= since)
+            .Select(x => x.SentAt)
+            .ToListAsync();
+
+        var matchesByDay = recentMatchDates.GroupBy(d => d.Date).ToDictionary(g => g.Key, g => g.Count());
+        var firstMessagesByDay = recentStates
+            .Where(s => s.FirstMessageAt.HasValue && s.FirstMessageAt.Value >= since)
+            .GroupBy(s => s.FirstMessageAt!.Value.Date)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var firstRepliesByDay = recentStates
+            .Where(s => s.FirstReplyAt.HasValue && s.FirstReplyAt.Value >= since)
+            .GroupBy(s => s.FirstReplyAt!.Value.Date)
+            .ToDictionary(g => g.Key, g => g.Count());
+        var nudgesByDay = recentNudgeDates.GroupBy(d => d.Date).ToDictionary(g => g.Key, g => g.Count());
+
+        var result = Enumerable.Range(0, 30).Select(i =>
+        {
+            var day = since.AddDays(i);
+            return new DailyFunnelPointDto(
+                day.ToString("yyyy-MM-dd"),
+                matchesByDay.GetValueOrDefault(day),
+                firstMessagesByDay.GetValueOrDefault(day),
+                firstRepliesByDay.GetValueOrDefault(day),
+                nudgesByDay.GetValueOrDefault(day));
+        }).ToList();
+
+        return Ok(result);
     }
 }

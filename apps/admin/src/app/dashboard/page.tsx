@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AdminDashboardSummary, AdminLikeDetail, AdminMatchDetail, AdminUserDetail, AdminUserListItem } from '@dating/types';
+import type { AdminDashboardSummary, AdminDailyFunnelPoint, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminUserDetail, AdminUserListItem } from '@dating/types';
 import { adminApi } from '@/lib/adminApi';
 import { clearAdminSession, getStoredAdminSession } from '@/lib/adminAuth';
 
@@ -77,9 +77,35 @@ function MatchesSection({ items }: { items: AdminMatchDetail[] }) {
   );
 }
 
+function TrendChart({ data }: { data: AdminDailyFunnelPoint[] }) {
+  const max = Math.max(1, ...data.flatMap((d) => [d.newMatches, d.firstMessages, d.firstReplies, d.nudgesSent]));
+  return (
+    <div className="trend-bars">
+      {data.map((day) => (
+        <div key={day.date} className="trend-day" title={day.date}>
+          {[
+            { value: day.newMatches, color: 'var(--signal)' },
+            { value: day.firstMessages, color: '#a3c1ff' },
+            { value: day.firstReplies, color: 'var(--warning)' },
+            { value: day.nudgesSent, color: 'var(--danger)' },
+          ].map((bar, i) => (
+            <div
+              key={i}
+              className="trend-bar"
+              style={{ height: `${Math.max(2, (bar.value / max) * 100)}%`, background: bar.color }}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
+  const [funnelMetrics, setFunnelMetrics] = useState<AdminFunnelMetrics | null>(null);
+  const [dailyMetrics, setDailyMetrics] = useState<AdminDailyFunnelPoint[]>([]);
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<AdminUserDetail | null>(null);
@@ -111,9 +137,11 @@ export default function DashboardPage() {
 
     async function load() {
       try {
-        const [summaryResponse, usersResponse] = await Promise.all([
+        const [summaryResponse, usersResponse, funnelResponse, dailyResponse] = await Promise.all([
           adminApi.getSummary(),
           adminApi.getUsers(),
+          adminApi.getFunnelMetrics(),
+          adminApi.getDailyMetrics(),
         ]);
 
         if (ignore) {
@@ -122,6 +150,8 @@ export default function DashboardPage() {
 
         setSummary(summaryResponse);
         setUsers(usersResponse);
+        setFunnelMetrics(funnelResponse);
+        setDailyMetrics(dailyResponse);
         startTransition(() => {
           setSelectedUserId(usersResponse[0]?.userId ?? null);
         });
@@ -208,6 +238,61 @@ export default function DashboardPage() {
             <div className="summary-value">{item.value}</div>
           </article>
         ))}
+      </section>
+
+      <section className="glass-panel funnel-section">
+        <div className="eyebrow">Matching + messaging</div>
+        <h2 style={{ margin: '4px 0 16px' }}>Conversation funnel</h2>
+        <div className="funnel-grid">
+          {funnelMetrics ? (
+            [
+              { label: 'Matched', value: funnelMetrics.matchedCount, sub: 'total matches' },
+              {
+                label: 'First message sent',
+                value: funnelMetrics.firstMessagedCount,
+                sub: funnelMetrics.matchedCount > 0
+                  ? `${((funnelMetrics.firstMessagedCount / funnelMetrics.matchedCount) * 100).toFixed(0)}% of matched`
+                  : '—',
+              },
+              {
+                label: 'First reply received',
+                value: funnelMetrics.firstRepliedCount,
+                sub: funnelMetrics.firstMessagedCount > 0
+                  ? `${((funnelMetrics.firstRepliedCount / funnelMetrics.firstMessagedCount) * 100).toFixed(0)}% of messaged`
+                  : '—',
+              },
+              {
+                label: 'Currently stale',
+                value: funnelMetrics.staleChatCount,
+                sub: funnelMetrics.firstMessagedCount > 0
+                  ? `${((funnelMetrics.staleChatCount / funnelMetrics.firstMessagedCount) * 100).toFixed(0)}% of messaged`
+                  : '—',
+              },
+              { label: 'Nudges sent', value: funnelMetrics.nudgesSentCount, sub: 'all time' },
+            ].map((step) => (
+              <div key={step.label} className="funnel-step">
+                <p className="panel-title muted">{step.label}</p>
+                <div className="summary-value">{step.value}</div>
+                <p className="muted" style={{ fontSize: '0.8rem', margin: 0 }}>{step.sub}</p>
+              </div>
+            ))
+          ) : (
+            <p className="muted">Loading funnel...</p>
+          )}
+        </div>
+
+        {dailyMetrics.length > 0 ? (
+          <div style={{ marginTop: 24 }}>
+            <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.85rem' }}>Last 30 days — hover a column to see the date</p>
+            <TrendChart data={dailyMetrics} />
+            <div className="chart-legend">
+              <span><span className="legend-dot" style={{ background: 'var(--signal)' }} />New matches</span>
+              <span><span className="legend-dot" style={{ background: '#a3c1ff' }} />First messages</span>
+              <span><span className="legend-dot" style={{ background: 'var(--warning)' }} />First replies</span>
+              <span><span className="legend-dot" style={{ background: 'var(--danger)' }} />Nudges sent</span>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="main-grid">
