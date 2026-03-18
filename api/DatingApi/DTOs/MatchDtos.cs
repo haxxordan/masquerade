@@ -33,8 +33,10 @@ public record ConversationStateDto(
     string MatchId,
     DateTime? FirstMessageAt,
     DateTime? FirstReplyAt,
+    DateTime? FirstReadAt,
     DateTime? LastNudgedAt,
     bool IsStale,
+    bool IsSeenNoReply,
     bool CanNudge,
     string SuggestedNudge
 );

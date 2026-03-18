@@ -40,8 +40,10 @@ export interface ConversationState {
   matchId: string;
   firstMessageAt?: string;
   firstReplyAt?: string;
+  firstReadAt?: string;
   lastNudgedAt?: string;
   isStale: boolean;
+  isSeenNoReply: boolean;
   canNudge: boolean;
   suggestedNudge: string;
 }

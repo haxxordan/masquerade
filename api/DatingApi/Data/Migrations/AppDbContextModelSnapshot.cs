@@ -99,7 +99,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("BlockerId", "BlockedId");
 
-                    b.ToTable("Blocks");
+                    b.ToTable("Blocks", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.ConversationState", b =>
@@ -121,7 +121,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("MatchId");
 
-                    b.ToTable("ConversationStates");
+                    b.ToTable("ConversationStates", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Like", b =>
@@ -137,7 +137,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("LikerId", "LikeeId");
 
-                    b.ToTable("Likes");
+                    b.ToTable("Likes", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Match", b =>
@@ -174,7 +174,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Matches");
+                    b.ToTable("Matches", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Message", b =>
@@ -211,7 +211,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasIndex("MatchId");
 
-                    b.ToTable("Messages");
+                    b.ToTable("Messages", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Profile", b =>
@@ -261,7 +261,7 @@ namespace DatingApi.Data.Migrations
                     b.HasIndex("UserId")
                         .IsUnique();
 
-                    b.ToTable("Profiles");
+                    b.ToTable("Profiles", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.ProfileTag", b =>
@@ -284,7 +284,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasIndex("ProfileId");
 
-                    b.ToTable("ProfileTags");
+                    b.ToTable("ProfileTags", (string)null);
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Report", b =>
@@ -320,7 +320,7 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Reports");
+                    b.ToTable("Reports", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

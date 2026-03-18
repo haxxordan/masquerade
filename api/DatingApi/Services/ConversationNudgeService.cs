@@ -7,8 +7,16 @@ namespace DatingApi.Services;
 
 public class ConversationNudgeService(AppDbContext db)
 {
-    private static readonly TimeSpan StaleAfter = TimeSpan.FromHours(12);
+    private static readonly TimeSpan UnseenStaleAfter = TimeSpan.FromHours(12);
+    private static readonly TimeSpan SeenNoReplyStaleAfter = TimeSpan.FromHours(6);
     private static readonly TimeSpan NudgeCooldown = TimeSpan.FromHours(24);
+
+    private sealed record ConversationReadSnapshot(
+        DateTime? FirstMessageAt,
+        DateTime? FirstReplyAt,
+        DateTime? FirstReadAt,
+        bool IsSeenNoReply,
+        bool IsStale);
 
     public async Task RecordMessageAsync(Match match, string senderId, DateTime sentAt)
     {
@@ -46,14 +54,15 @@ public class ConversationNudgeService(AppDbContext db)
     public async Task<ConversationStateDto> GetStateAsync(Match match, string requesterUserId)
     {
         var state = await db.ConversationStates.FindAsync(match.Id);
-
-        var firstMessageAt = state?.FirstMessageAt;
-        var firstReplyAt = state?.FirstReplyAt;
         var lastNudgedAt = state?.LastNudgedAt;
 
-        var isStale = ComputeIsStale(firstMessageAt, firstReplyAt);
+        var snapshot = await BuildReadSnapshotAsync(match.Id);
+        var firstMessageAt = snapshot.FirstMessageAt ?? state?.FirstMessageAt;
+        var firstReplyAt = snapshot.FirstReplyAt ?? state?.FirstReplyAt;
+
+        var isStale = snapshot.IsStale;
         var canNudge = ComputeCanNudge(isStale, lastNudgedAt);
-        var suggestedNudge = await BuildSuggestedNudgeAsync(match, requesterUserId);
+        var suggestedNudge = await BuildSuggestedNudgeAsync(match, requesterUserId, snapshot.IsSeenNoReply);
 
         if (state != null)
         {
@@ -65,8 +74,10 @@ public class ConversationNudgeService(AppDbContext db)
             match.Id,
             firstMessageAt,
             firstReplyAt,
+            snapshot.FirstReadAt,
             lastNudgedAt,
             isStale,
+            snapshot.IsSeenNoReply,
             canNudge,
             suggestedNudge);
     }
@@ -80,12 +91,13 @@ public class ConversationNudgeService(AppDbContext db)
             db.ConversationStates.Add(state);
         }
 
-        var isStale = ComputeIsStale(state.FirstMessageAt, state.FirstReplyAt);
+        var snapshot = await BuildReadSnapshotAsync(match.Id);
+        var isStale = snapshot.IsStale;
         var canNudge = ComputeCanNudge(isStale, state.LastNudgedAt);
         if (!canNudge)
             return null;
 
-        var nudgeText = await BuildSuggestedNudgeAsync(match, requesterUserId);
+        var nudgeText = await BuildSuggestedNudgeAsync(match, requesterUserId, snapshot.IsSeenNoReply);
 
         var message = new Message
         {
@@ -111,13 +123,14 @@ public class ConversationNudgeService(AppDbContext db)
             message.Content,
             message.SentAt,
             message.Kind,
-            message.MetadataJson);
+            message.MetadataJson,
+            message.ReadAt);
 
         var conversationState = await GetStateAsync(match, requesterUserId);
         return new NudgeResponseDto(dto, conversationState);
     }
 
-    private static bool ComputeIsStale(DateTime? firstMessageAt, DateTime? firstReplyAt)
+    private static bool ComputeIsStale(DateTime? firstMessageAt, DateTime? firstReplyAt, DateTime? firstReadAt)
     {
         if (!firstMessageAt.HasValue)
             return false;
@@ -125,7 +138,10 @@ public class ConversationNudgeService(AppDbContext db)
         if (firstReplyAt.HasValue)
             return false;
 
-        return DateTime.UtcNow - firstMessageAt.Value >= StaleAfter;
+        if (firstReadAt.HasValue)
+            return DateTime.UtcNow - firstReadAt.Value >= SeenNoReplyStaleAfter;
+
+        return DateTime.UtcNow - firstMessageAt.Value >= UnseenStaleAfter;
     }
 
     private static bool ComputeCanNudge(bool isStale, DateTime? lastNudgedAt)
@@ -139,7 +155,7 @@ public class ConversationNudgeService(AppDbContext db)
         return DateTime.UtcNow - lastNudgedAt.Value >= NudgeCooldown;
     }
 
-    private async Task<string> BuildSuggestedNudgeAsync(Match match, string requesterUserId)
+    private async Task<string> BuildSuggestedNudgeAsync(Match match, string requesterUserId, bool isSeenNoReply)
     {
         var otherUserId = match.User1Id == requesterUserId ? match.User2Id : match.User1Id;
 
@@ -152,7 +168,9 @@ public class ConversationNudgeService(AppDbContext db)
             .FirstOrDefaultAsync(p => p.UserId == otherUserId);
 
         if (requester == null || other == null)
-            return "Hey, just checking in. How's your day going?";
+            return isSeenNoReply
+                ? "Thanks for reading my last message. No rush, but I'd still love to hear from you."
+                : "Hey, just checking in. How's your day going?";
 
         var requesterHobbies = requester.Tags
             .Where(t => t.Category == TagCategory.Hobby)
@@ -165,8 +183,42 @@ public class ConversationNudgeService(AppDbContext db)
             .FirstOrDefault();
 
         if (!string.IsNullOrWhiteSpace(sharedHobby))
+        {
+            if (isSeenNoReply)
+                return $"Saw you checked my last message. Still up for talking about {sharedHobby}?";
+
             return $"Still up for talking about {sharedHobby}? I'd love to hear your take.";
+        }
+
+        if (isSeenNoReply)
+            return $"Hey {other.DisplayName}, thanks for checking my message. Want to keep this going?";
 
         return $"Hey {other.DisplayName}, wanted to follow up. Hope your week is going well.";
+    }
+
+    private async Task<ConversationReadSnapshot> BuildReadSnapshotAsync(string matchId)
+    {
+        var firstMessage = await db.Messages
+            .AsNoTracking()
+            .Where(m => m.MatchId == matchId)
+            .OrderBy(m => m.SentAt)
+            .Select(m => new { m.SenderId, m.SentAt, m.ReadAt })
+            .FirstOrDefaultAsync();
+
+        if (firstMessage == null)
+            return new ConversationReadSnapshot(null, null, null, false, false);
+
+        var firstReplyAt = await db.Messages
+            .AsNoTracking()
+            .Where(m => m.MatchId == matchId && m.SentAt > firstMessage.SentAt && m.SenderId != firstMessage.SenderId)
+            .OrderBy(m => m.SentAt)
+            .Select(m => (DateTime?)m.SentAt)
+            .FirstOrDefaultAsync();
+
+        var firstReadAt = firstMessage.ReadAt;
+        var isSeenNoReply = firstReadAt.HasValue && !firstReplyAt.HasValue;
+        var isStale = ComputeIsStale(firstMessage.SentAt, firstReplyAt, firstReadAt);
+
+        return new ConversationReadSnapshot(firstMessage.SentAt, firstReplyAt, firstReadAt, isSeenNoReply, isStale);
     }
 }

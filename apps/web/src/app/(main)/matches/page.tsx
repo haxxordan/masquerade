@@ -374,7 +374,14 @@ function MatchesContent() {
 
                             {activeState?.isStale && (
                                 <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#ff6699]/30 bg-[#ff6699]/10 px-3 py-2">
-                                    <p className="text-xs text-[#ffb3ca] truncate">{activeState.suggestedNudge}</p>
+                                    <div className="min-w-0">
+                                        {activeState.isSeenNoReply ? (
+                                            <p className="mb-1 text-[10px] uppercase tracking-wide text-[#ffc2d5]">Seen, no reply yet</p>
+                                        ) : (
+                                            <p className="mb-1 text-[10px] uppercase tracking-wide text-[#ffc2d5]">Not seen yet</p>
+                                        )}
+                                        <p className="text-xs text-[#ffb3ca] truncate">{activeState.suggestedNudge}</p>
+                                    </div>
                                     <button
                                         onClick={handleSendNudge}
                                         disabled={!activeState.canNudge || nudging}
