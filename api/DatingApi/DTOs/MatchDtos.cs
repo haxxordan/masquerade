@@ -24,7 +24,8 @@ public record MessageDto(
     string Content,
     DateTime SentAt,
     MessageKind Kind = MessageKind.Text,
-    string? MetadataJson = null
+    string? MetadataJson = null,
+    DateTime? ReadAt = null
 );
 
 public record OpenerSuggestionsDto(List<string> Suggestions);

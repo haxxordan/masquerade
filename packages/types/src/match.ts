@@ -29,6 +29,7 @@ export interface Message {
   sentAt: string;
   kind?: MessageKind;
   metadataJson?: string;
+  readAt?: string;
 }
 
 export interface OpenerSuggestions {

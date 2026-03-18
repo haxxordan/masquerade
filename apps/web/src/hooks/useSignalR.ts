@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
+import { matchesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
 import { useMatchStore } from '@dating/store';
 import { toast } from 'sonner';
@@ -10,8 +11,8 @@ import { Match } from '@dating/types';
 import { hubConnection } from '@/lib/hubConnection';
 
 export function useSignalR() {
-    const { token } = useAuthStore();
-    const { addMatch, addMessage, setTyping } = useMatchStore();
+    const { token, userId } = useAuthStore();
+    const { addMatch, addMessage, setTyping, applyReadReceipt, activeMatchId } = useMatchStore();
     const pathname = usePathname();
     const connectionRef = useRef<signalR.HubConnection | null>(null);
     const pathnameRef = useRef(pathname);
@@ -42,6 +43,21 @@ export function useSignalR() {
 
         connection.on('NewMessage', (message) => {
             addMessage(message.matchId, message);
+
+            const isViewingThisConversation = pathnameRef.current.includes('/matches') && activeMatchId === message.matchId;
+            const isIncoming = message.senderId !== userId;
+
+            if (isViewingThisConversation && isIncoming) {
+                matchesApi.markRead(message.matchId)
+                    .then((receipt) => {
+                        if (!userId) return;
+                        applyReadReceipt(message.matchId, userId, receipt.readAt);
+                    })
+                    .catch((error: unknown) => {
+                        console.error('Failed to mark incoming message as read:', error);
+                    });
+            }
+
             if (!pathnameRef.current.includes('/matches')) {
                 toast('💬 New message', {
                     description: message.content.length > 40
@@ -73,6 +89,10 @@ export function useSignalR() {
             setTyping(matchId, false);
         });
 
+        connection.on('MessagesRead', (payload: { matchId: string; readAt: string; readerUserId: string }) => {
+            applyReadReceipt(payload.matchId, payload.readerUserId, payload.readAt);
+        });
+
         connection.start()
             .then(() => {
                 if (cancelled) {
@@ -98,5 +118,5 @@ export function useSignalR() {
                 hubConnection.current = null;
             }
         };
-    }, [token]);
+    }, [token, userId, applyReadReceipt, activeMatchId]);
 }

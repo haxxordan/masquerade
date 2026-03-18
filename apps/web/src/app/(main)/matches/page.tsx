@@ -28,6 +28,13 @@ function MessageBubble({ message, isMe }: { message: Message; isMe: boolean }) {
     );
 }
 
+function formatSeenTime(value: string) {
+    return new Intl.DateTimeFormat('en', {
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(new Date(value));
+}
+
 // ─── Match card ───────────────────────────────────────────────────────────────
 
 function MatchCard({
@@ -94,6 +101,7 @@ function MatchesContent() {
         if (matchIdParam && matches.length > 0) {
             setActiveMatch(matchIdParam);
             markRead(matchIdParam);
+            handleMarkRead(matchIdParam);
         }
     }, [matches]); // run when matches load
 
@@ -108,6 +116,7 @@ function MatchesContent() {
         matchesApi.getMessages(activeMatchId).then(msgs => {
             setMessages(activeMatchId, msgs);
             markRead(activeMatchId);
+            handleMarkRead(activeMatchId);
         });
     }, [activeMatchId]);
 
@@ -169,6 +178,9 @@ function MatchesContent() {
     const activeOpeners = activeMatchId ? (openersByMatchId[activeMatchId] ?? []) : [];
     const activeState = activeMatchId ? (stateByMatchId[activeMatchId] ?? null) : null;
     const isOtherTyping = activeMatchId ? (typingByMatchId[activeMatchId] ?? false) : false;
+    const lastMyMessageWithReceipt = [...activeMessages]
+        .reverse()
+        .find((message) => message.senderId === userId && message.readAt);
 
     const handleInputChange = (value: string) => {
         setInput(value);
@@ -230,6 +242,16 @@ function MatchesContent() {
         }
     };
 
+    const handleMarkRead = async (matchId: string) => {
+        try {
+            const receipt = await matchesApi.markRead(matchId);
+            if (!userId) return;
+            useMatchStore.getState().applyReadReceipt(matchId, userId, receipt.readAt);
+        } catch (error) {
+            console.error('Failed to mark messages as read:', error);
+        }
+    };
+
     return (
         <div className="bg-black text-white font-mono flex overflow-hidden" style={{ height: 'calc(100vh - 3.5rem)' }}>
 
@@ -255,6 +277,7 @@ function MatchesContent() {
                                 onClick={() => {
                                     setActiveMatch(m.id);
                                     markRead(m.id);
+                                    handleMarkRead(m.id);
                                 }}
                             />
                         ))}
@@ -311,13 +334,24 @@ function MatchesContent() {
                                     You matched! Say hello 👋
                                 </div>
                             ) : (
-                                activeMessages.map(msg => (
-                                    <MessageBubble
-                                        key={msg.id}
-                                        message={msg}
-                                        isMe={msg.senderId === userId}
-                                    />
-                                ))
+                                activeMessages.map(msg => {
+                                    const isMe = msg.senderId === userId;
+                                    const showSeen = isMe && msg.id === lastMyMessageWithReceipt?.id && !!msg.readAt;
+
+                                    return (
+                                        <div key={msg.id}>
+                                            <MessageBubble
+                                                message={msg}
+                                                isMe={isMe}
+                                            />
+                                            {showSeen && msg.readAt ? (
+                                                <div className="mb-2 mt-[-4px] pr-1 text-right text-[11px] text-white/40">
+                                                    Seen {formatSeenTime(msg.readAt)}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                    );
+                                })
                             )}
                             <div ref={bottomRef} />
                         </div>

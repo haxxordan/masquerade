@@ -161,8 +161,34 @@ public class MatchesController(
         return await db.Messages
             .Where(m => m.MatchId == matchId)
             .OrderBy(m => m.SentAt)
-            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId, m.Content, m.SentAt, m.Kind, m.MetadataJson))
+            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId, m.Content, m.SentAt, m.Kind, m.MetadataJson, m.ReadAt))
             .ToListAsync();
+    }
+
+    [HttpPost("{matchId}/read")]
+    public async Task<ActionResult<object>> MarkRead(string matchId)
+    {
+        var match = await db.Matches.FindAsync(matchId);
+        if (match == null || (match.User1Id != UserId && match.User2Id != UserId))
+            return Forbid();
+
+        var now = DateTime.UtcNow;
+        var unreadIncoming = await db.Messages
+            .Where(m => m.MatchId == matchId && m.SenderId != UserId && m.ReadAt == null)
+            .ToListAsync();
+
+        if (unreadIncoming.Count > 0)
+        {
+            foreach (var message in unreadIncoming)
+                message.ReadAt = now;
+
+            await db.SaveChangesAsync();
+
+            var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
+            await hub.Clients.User(recipientId).SendAsync("MessagesRead", new { matchId, readAt = now, readerUserId = UserId });
+        }
+
+        return Ok(new { readAt = now });
     }
 
     [HttpGet("{matchId}/state")]
@@ -243,7 +269,8 @@ public class MatchesController(
             message.Content,
             message.SentAt,
             message.Kind,
-            message.MetadataJson);
+            message.MetadataJson,
+            message.ReadAt);
         var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
         await hub.Clients.User(recipientId).SendAsync("NewMessage", dto);
 

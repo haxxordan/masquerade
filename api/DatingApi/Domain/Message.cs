@@ -12,4 +12,5 @@ public class Message
     public MessageKind Kind { get; set; } = MessageKind.Text;
     public string MetadataJson { get; set; } = "{}";
     public DateTime SentAt { get; set; } = DateTime.UtcNow;
+    public DateTime? ReadAt { get; set; }
 }

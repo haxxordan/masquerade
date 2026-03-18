@@ -16,6 +16,7 @@ interface MatchState {
   markRead: (matchId: string) => void;
   clearUnread: () => void;
   setTyping: (matchId: string, isTyping: boolean) => void;
+  applyReadReceipt: (matchId: string, readerUserId: string, readAt: string) => void;
 }
 
 export const useMatchStore = create<MatchState>((set) => ({
@@ -52,4 +53,15 @@ export const useMatchStore = create<MatchState>((set) => ({
   clearUnread: () => set({ unreadMatchIds: new Set() }),
   setTyping: (matchId, isTyping) =>
     set((s) => ({ typingByMatchId: { ...s.typingByMatchId, [matchId]: isTyping } })),
+  applyReadReceipt: (matchId, readerUserId, readAt) =>
+    set((s) => ({
+      messages: {
+        ...s.messages,
+        [matchId]: (s.messages[matchId] ?? []).map((message) =>
+          message.senderId !== readerUserId && !message.readAt
+            ? { ...message, readAt }
+            : message
+        ),
+      },
+    })),
 }));
