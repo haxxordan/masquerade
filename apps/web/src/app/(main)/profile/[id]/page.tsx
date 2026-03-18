@@ -139,6 +139,13 @@ export default function ProfilePage() {
   const [reportSent, setReportSent] = useState(false);
   const { matches, removeMatch } = useMatchStore();
 
+  const reportReasonLabels: Record<ReportReason, string> = {
+    Spam: 'Spam',
+    Harassment: 'Harassment',
+    FakeProfile: 'Fake Profile',
+    Other: 'Other',
+  };
+
   useEffect(() => {
     profilesApi.get(id).then(p => {
       setProfile(p);
@@ -332,7 +339,7 @@ export default function ProfilePage() {
                     onClick={() => setReportReason(r)}
                     className={`px-3 py-1.5 rounded-full text-xs border transition ${reportReason === r ? 'border-yellow-400 text-yellow-400' : 'border-white/20 text-white/40 hover:border-white/40'}`}
                   >
-                    {r}
+                    {reportReasonLabels[r]}
                   </button>
                 ))}
               </div>
