@@ -11,5 +11,9 @@ RUN dotnet publish "DatingApi.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
+
+# Install required system libraries for authentication and security
+RUN apt-get update && apt-get install -y libgssapi-krb5-2 libk5crypto3 && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DatingApi.dll"]
