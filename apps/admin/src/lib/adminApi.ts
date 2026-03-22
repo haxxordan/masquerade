@@ -1,4 +1,5 @@
 import type {
+  AdminEngagementTrends,
   AdminAuthResponse,
   AdminDashboardSummary,
   AdminDailyFunnelPoint,
@@ -65,7 +66,12 @@ export const adminApi = {
 
   getFunnelMetrics: () => request<AdminFunnelMetrics>('/api/admin/metrics/funnel'),
 
+  getEngagementMetrics: () => request<AdminFunnelMetrics>('/api/admin/metrics/engagement'),
+
   getDailyMetrics: () => request<AdminDailyFunnelPoint[]>('/api/admin/metrics/daily'),
+
+  getEngagementTrends: (days = 30, granularity: 'daily' | 'weekly' = 'daily') =>
+    request<AdminEngagementTrends>(`/api/admin/metrics/trends?days=${days}&granularity=${granularity}`),
 
   getReports: () => request<AdminReport[]>('/api/admin/reports'),
 

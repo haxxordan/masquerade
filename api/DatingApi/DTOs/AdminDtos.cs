@@ -62,7 +62,24 @@ public sealed record FunnelMetricsDto(
     int FirstMessagedCount,
     int FirstRepliedCount,
     int StaleChatCount,
-    int NudgesSentCount);
+    int NudgesSentCount,
+    int NudgesActedCount,
+    double FirstMessageRatePercent,
+    double FirstReplyRatePercent,
+    double StaleChatRatePercent,
+    double NudgeActedRatePercent);
+
+public sealed record EngagementMetricsDto(
+    int MatchedCount,
+    int FirstMessagedCount,
+    int FirstRepliedCount,
+    int StaleChatCount,
+    int NudgesSentCount,
+    int NudgesActedCount,
+    double FirstMessageRatePercent,
+    double FirstReplyRatePercent,
+    double StaleChatRatePercent,
+    double NudgeActedRatePercent);
 
 public sealed record DailyFunnelPointDto(
     string Date,
@@ -70,6 +87,22 @@ public sealed record DailyFunnelPointDto(
     int FirstMessages,
     int FirstReplies,
     int NudgesSent);
+
+public sealed record TrendPointDto(
+    string PeriodStart,
+    int NewMatches,
+    int FirstMessages,
+    int FirstReplies,
+    int NudgesSent,
+    int NudgesActed,
+    double FirstMessageRatePercent,
+    double FirstReplyRatePercent,
+    double NudgeActedRatePercent);
+
+public sealed record EngagementTrendsDto(
+    string Granularity,
+    int WindowDays,
+    IReadOnlyList<TrendPointDto> Points);
 
 public sealed record AdminReportDto(
     string Id,

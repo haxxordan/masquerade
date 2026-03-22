@@ -13,6 +13,9 @@ namespace DatingApi.Controllers;
 [Route("api/admin")]
 public class AdminController(AppDbContext db) : ControllerBase
 {
+    private sealed record NudgeEvent(string MatchId, string SenderId, DateTime SentAt);
+    private sealed record ReplyEvent(string MatchId, string SenderId, DateTime SentAt);
+
     [HttpGet("summary")]
     public async Task<ActionResult<AdminDashboardSummaryDto>> GetSummary()
     {
@@ -179,9 +182,54 @@ public class AdminController(AppDbContext db) : ControllerBase
         var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
         var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
         var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
-        var nudgesSentCount = await db.Messages.AsNoTracking().CountAsync(x => x.Kind == MessageKind.Nudge);
+        var nudgesSent = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind == MessageKind.Nudge)
+            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
+            .ToListAsync();
 
-        return Ok(new FunnelMetricsDto(matchedCount, firstMessagedCount, firstRepliedCount, staleChatCount, nudgesSentCount));
+        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
+        var nudgesActedCount = CountActedNudges(nudgesSent, nonNudgeRepliesByMatch, sinceInclusive: null, untilExclusive: null);
+
+        return Ok(new FunnelMetricsDto(
+            matchedCount,
+            firstMessagedCount,
+            firstRepliedCount,
+            staleChatCount,
+            nudgesSent.Count,
+            nudgesActedCount,
+            ToPercent(firstMessagedCount, matchedCount),
+            ToPercent(firstRepliedCount, firstMessagedCount),
+            ToPercent(staleChatCount, firstMessagedCount),
+            ToPercent(nudgesActedCount, nudgesSent.Count)));
+    }
+
+    [HttpGet("metrics/engagement")]
+    public async Task<ActionResult<EngagementMetricsDto>> GetEngagementMetrics()
+    {
+        var matchedCount = await db.Matches.AsNoTracking().CountAsync();
+        var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
+        var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
+        var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
+
+        var nudgesSent = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind == MessageKind.Nudge)
+            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
+            .ToListAsync();
+
+        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
+        var nudgesActedCount = CountActedNudges(nudgesSent, nonNudgeRepliesByMatch, sinceInclusive: null, untilExclusive: null);
+
+        return Ok(new EngagementMetricsDto(
+            matchedCount,
+            firstMessagedCount,
+            firstRepliedCount,
+            staleChatCount,
+            nudgesSent.Count,
+            nudgesActedCount,
+            ToPercent(firstMessagedCount, matchedCount),
+            ToPercent(firstRepliedCount, firstMessagedCount),
+            ToPercent(staleChatCount, firstMessagedCount),
+            ToPercent(nudgesActedCount, nudgesSent.Count)));
     }
 
     [HttpGet("metrics/daily")]
@@ -231,6 +279,79 @@ public class AdminController(AppDbContext db) : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("metrics/trends")]
+    public async Task<ActionResult<EngagementTrendsDto>> GetEngagementTrends([FromQuery] int days = 30, [FromQuery] string granularity = "daily")
+    {
+        days = Math.Clamp(days, 7, 180);
+        var normalizedGranularity = NormalizeGranularity(granularity);
+        var periodSizeDays = normalizedGranularity == "weekly" ? 7 : 1;
+
+        var today = DateTime.SpecifyKind(DateTime.UtcNow.Date, DateTimeKind.Utc);
+        var since = today.AddDays(-(days - 1));
+        var untilExclusive = today.AddDays(1);
+
+        var recentMatchDates = await db.Matches.AsNoTracking()
+            .Where(x => x.CreatedAt >= since && x.CreatedAt < untilExclusive)
+            .Select(x => x.CreatedAt)
+            .ToListAsync();
+
+        var recentStates = await db.ConversationStates.AsNoTracking()
+            .Where(x =>
+                (x.FirstMessageAt != null && x.FirstMessageAt >= since && x.FirstMessageAt < untilExclusive) ||
+                (x.FirstReplyAt != null && x.FirstReplyAt >= since && x.FirstReplyAt < untilExclusive))
+            .Select(x => new { x.FirstMessageAt, x.FirstReplyAt })
+            .ToListAsync();
+
+        var nudgesSent = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind == MessageKind.Nudge && x.SentAt >= since && x.SentAt < untilExclusive)
+            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
+            .ToListAsync();
+
+        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
+
+        var matchesByPeriod = GroupByPeriod(recentMatchDates, since, periodSizeDays);
+        var firstMessagesByPeriod = GroupByPeriod(
+            recentStates
+                .Where(s => s.FirstMessageAt.HasValue)
+                .Select(s => s.FirstMessageAt!.Value),
+            since,
+            periodSizeDays);
+        var firstRepliesByPeriod = GroupByPeriod(
+            recentStates
+                .Where(s => s.FirstReplyAt.HasValue)
+                .Select(s => s.FirstReplyAt!.Value),
+            since,
+            periodSizeDays);
+        var nudgesByPeriod = GroupByPeriod(nudgesSent.Select(x => x.SentAt), since, periodSizeDays);
+
+        var points = new List<TrendPointDto>();
+        for (var periodStart = since; periodStart <= today; periodStart = periodStart.AddDays(periodSizeDays))
+        {
+            var periodEndExclusive = periodStart.AddDays(periodSizeDays);
+            if (periodEndExclusive > untilExclusive)
+                periodEndExclusive = untilExclusive;
+
+            var nudgesActed = CountActedNudges(nudgesSent, nonNudgeRepliesByMatch, periodStart, periodEndExclusive);
+            var newMatches = matchesByPeriod.GetValueOrDefault(periodStart);
+            var firstMessages = firstMessagesByPeriod.GetValueOrDefault(periodStart);
+            var firstReplies = firstRepliesByPeriod.GetValueOrDefault(periodStart);
+            var nudgesSentCount = nudgesByPeriod.GetValueOrDefault(periodStart);
+
+            points.Add(new TrendPointDto(
+                periodStart.ToString("yyyy-MM-dd"),
+                newMatches,
+                firstMessages,
+                firstReplies,
+                nudgesSentCount,
+                nudgesActed,
+                ToPercent(firstMessages, newMatches),
+                ToPercent(firstReplies, firstMessages),
+                ToPercent(nudgesActed, nudgesSentCount)));
+        }
+
+        return Ok(new EngagementTrendsDto(normalizedGranularity, days, points));
+    }
+
     [HttpGet("reports")]
     public async Task<ActionResult<IReadOnlyList<AdminReportDto>>> GetReports()
     {
@@ -272,5 +393,78 @@ public class AdminController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
 
         return Ok();
+    }
+
+    private static string NormalizeGranularity(string granularity)
+    {
+        if (string.Equals(granularity, "weekly", StringComparison.OrdinalIgnoreCase))
+            return "weekly";
+
+        return "daily";
+    }
+
+    private static double ToPercent(int numerator, int denominator)
+    {
+        if (denominator <= 0)
+            return 0;
+
+        return Math.Round((double)numerator / denominator * 100, 2);
+    }
+
+    private static Dictionary<DateTime, int> GroupByPeriod(IEnumerable<DateTime> timestamps, DateTime since, int periodSizeDays)
+    {
+        return timestamps
+            .GroupBy(timestamp => GetPeriodStart(DateTime.SpecifyKind(timestamp.Date, DateTimeKind.Utc), since, periodSizeDays))
+            .ToDictionary(group => group.Key, group => group.Count());
+    }
+
+    private static DateTime GetPeriodStart(DateTime day, DateTime since, int periodSizeDays)
+    {
+        var offsetDays = (int)(day - since).TotalDays;
+        if (offsetDays < 0)
+            offsetDays = 0;
+
+        var bucket = offsetDays / periodSizeDays;
+        return since.AddDays(bucket * periodSizeDays);
+    }
+
+    private static int CountActedNudges(
+        IReadOnlyList<NudgeEvent> nudges,
+        IReadOnlyDictionary<string, List<ReplyEvent>> repliesByMatch,
+        DateTime? sinceInclusive,
+        DateTime? untilExclusive)
+    {
+        var count = 0;
+
+        foreach (var nudge in nudges)
+        {
+            if (sinceInclusive.HasValue && nudge.SentAt < sinceInclusive.Value)
+                continue;
+
+            if (untilExclusive.HasValue && nudge.SentAt >= untilExclusive.Value)
+                continue;
+
+            if (!repliesByMatch.TryGetValue(nudge.MatchId, out var replies))
+                continue;
+
+            if (replies.Any(reply => reply.SentAt > nudge.SentAt && !string.Equals(reply.SenderId, nudge.SenderId, StringComparison.Ordinal)))
+            {
+                count += 1;
+            }
+        }
+
+        return count;
+    }
+
+    private async Task<IReadOnlyDictionary<string, List<ReplyEvent>>> GetNonNudgeRepliesByMatchAsync()
+    {
+        var replies = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind != MessageKind.Nudge)
+            .Select(x => new ReplyEvent(x.MatchId, x.SenderId, x.SentAt))
+            .ToListAsync();
+
+        return replies
+            .GroupBy(reply => reply.MatchId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(reply => reply.SentAt).ToList());
     }
 }

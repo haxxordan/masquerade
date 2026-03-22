@@ -64,6 +64,11 @@ export interface AdminFunnelMetrics {
   firstRepliedCount: number;
   staleChatCount: number;
   nudgesSentCount: number;
+  nudgesActedCount: number;
+  firstMessageRatePercent: number;
+  firstReplyRatePercent: number;
+  staleChatRatePercent: number;
+  nudgeActedRatePercent: number;
 }
 
 export interface AdminDailyFunnelPoint {
@@ -72,6 +77,24 @@ export interface AdminDailyFunnelPoint {
   firstMessages: number;
   firstReplies: number;
   nudgesSent: number;
+}
+
+export interface AdminTrendPoint {
+  periodStart: string;
+  newMatches: number;
+  firstMessages: number;
+  firstReplies: number;
+  nudgesSent: number;
+  nudgesActed: number;
+  firstMessageRatePercent: number;
+  firstReplyRatePercent: number;
+  nudgeActedRatePercent: number;
+}
+
+export interface AdminEngagementTrends {
+  granularity: 'daily' | 'weekly';
+  windowDays: number;
+  points: AdminTrendPoint[];
 }
 
 export type AdminReportReason = 'Spam' | 'Harassment' | 'FakeProfile' | 'Other';

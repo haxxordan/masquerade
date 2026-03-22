@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AdminDashboardSummary, AdminDailyFunnelPoint, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminReport, AdminUserDetail, AdminUserListItem } from '@dating/types';
+import type { AdminDashboardSummary, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminReport, AdminTrendPoint, AdminUserDetail, AdminUserListItem } from '@dating/types';
 import { adminApi } from '@/lib/adminApi';
 import { clearAdminSession, getStoredAdminSession } from '@/lib/adminAuth';
 
@@ -23,6 +23,10 @@ function renderIdentity(user: { email: string; displayName: string | null; anima
   }
 
   return user.email;
+}
+
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
 }
 
 function LikesSection({ title, items }: { title: string; items: AdminLikeDetail[] }) {
@@ -77,17 +81,18 @@ function MatchesSection({ items }: { items: AdminMatchDetail[] }) {
   );
 }
 
-function TrendChart({ data }: { data: AdminDailyFunnelPoint[] }) {
-  const max = Math.max(1, ...data.flatMap((d) => [d.newMatches, d.firstMessages, d.firstReplies, d.nudgesSent]));
+function TrendChart({ data }: { data: AdminTrendPoint[] }) {
+  const max = Math.max(1, ...data.flatMap((d) => [d.newMatches, d.firstMessages, d.firstReplies, d.nudgesSent, d.nudgesActed]));
   return (
     <div className="trend-bars">
       {data.map((day) => (
-        <div key={day.date} className="trend-day" title={day.date}>
+        <div key={day.periodStart} className="trend-day" title={day.periodStart}>
           {[
             { value: day.newMatches, color: 'var(--signal)' },
             { value: day.firstMessages, color: '#a3c1ff' },
             { value: day.firstReplies, color: 'var(--warning)' },
             { value: day.nudgesSent, color: 'var(--danger)' },
+            { value: day.nudgesActed, color: '#65f0b4' },
           ].map((bar, i) => (
             <div
               key={i}
@@ -105,7 +110,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
   const [funnelMetrics, setFunnelMetrics] = useState<AdminFunnelMetrics | null>(null);
-  const [dailyMetrics, setDailyMetrics] = useState<AdminDailyFunnelPoint[]>([]);
+  const [trendData, setTrendData] = useState<AdminTrendPoint[]>([]);
+  const [trendGranularity, setTrendGranularity] = useState<'daily' | 'weekly'>('daily');
+  const [trendWindowDays, setTrendWindowDays] = useState<30 | 60 | 90>(30);
+  const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [reports, setReports] = useState<AdminReport[]>([]);
   const [users, setUsers] = useState<AdminUserListItem[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -138,11 +146,10 @@ export default function DashboardPage() {
 
     async function load() {
       try {
-        const [summaryResponse, usersResponse, funnelResponse, dailyResponse, reportsResponse] = await Promise.all([
+        const [summaryResponse, usersResponse, funnelResponse, reportsResponse] = await Promise.all([
           adminApi.getSummary(),
           adminApi.getUsers(),
-          adminApi.getFunnelMetrics(),
-          adminApi.getDailyMetrics(),
+          adminApi.getEngagementMetrics(),
           adminApi.getReports(),
         ]);
 
@@ -153,7 +160,6 @@ export default function DashboardPage() {
         setSummary(summaryResponse);
         setUsers(usersResponse);
         setFunnelMetrics(funnelResponse);
-        setDailyMetrics(dailyResponse);
         setReports(reportsResponse);
         startTransition(() => {
           setSelectedUserId(usersResponse[0]?.userId ?? null);
@@ -175,6 +181,36 @@ export default function DashboardPage() {
       ignore = true;
     };
   }, [router]);
+
+  useEffect(() => {
+    if (!getStoredAdminSession()) {
+      return;
+    }
+
+    let ignore = false;
+    setIsLoadingTrends(true);
+
+    adminApi.getEngagementTrends(trendWindowDays, trendGranularity)
+      .then((response) => {
+        if (!ignore) {
+          setTrendData(response.points);
+        }
+      })
+      .catch((trendError) => {
+        if (!ignore) {
+          setError(trendError instanceof Error ? trendError.message : 'Failed to load engagement trends.');
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsLoadingTrends(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [trendGranularity, trendWindowDays]);
 
   useEffect(() => {
     if (!selectedUserId) {
@@ -253,25 +289,24 @@ export default function DashboardPage() {
               {
                 label: 'First message sent',
                 value: funnelMetrics.firstMessagedCount,
-                sub: funnelMetrics.matchedCount > 0
-                  ? `${((funnelMetrics.firstMessagedCount / funnelMetrics.matchedCount) * 100).toFixed(0)}% of matched`
-                  : '—',
+                sub: `${formatPercent(funnelMetrics.firstMessageRatePercent)} of matched`,
               },
               {
                 label: 'First reply received',
                 value: funnelMetrics.firstRepliedCount,
-                sub: funnelMetrics.firstMessagedCount > 0
-                  ? `${((funnelMetrics.firstRepliedCount / funnelMetrics.firstMessagedCount) * 100).toFixed(0)}% of messaged`
-                  : '—',
+                sub: `${formatPercent(funnelMetrics.firstReplyRatePercent)} of messaged`,
               },
               {
                 label: 'Currently stale',
                 value: funnelMetrics.staleChatCount,
-                sub: funnelMetrics.firstMessagedCount > 0
-                  ? `${((funnelMetrics.staleChatCount / funnelMetrics.firstMessagedCount) * 100).toFixed(0)}% of messaged`
-                  : '—',
+                sub: `${formatPercent(funnelMetrics.staleChatRatePercent)} of messaged`,
               },
               { label: 'Nudges sent', value: funnelMetrics.nudgesSentCount, sub: 'all time' },
+              {
+                label: 'Nudges acted',
+                value: funnelMetrics.nudgesActedCount,
+                sub: `${formatPercent(funnelMetrics.nudgeActedRatePercent)} of nudges`,
+              },
             ].map((step) => (
               <div key={step.label} className="funnel-step">
                 <p className="panel-title muted">{step.label}</p>
@@ -284,18 +319,50 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {dailyMetrics.length > 0 ? (
+        <div style={{ marginTop: 16, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label className="muted" style={{ fontSize: '0.85rem' }}>
+            Window
+            <select
+              value={trendWindowDays}
+              onChange={(event) => setTrendWindowDays(Number(event.target.value) as 30 | 60 | 90)}
+              style={{ marginLeft: 8 }}
+            >
+              <option value={30}>30d</option>
+              <option value={60}>60d</option>
+              <option value={90}>90d</option>
+            </select>
+          </label>
+
+          <label className="muted" style={{ fontSize: '0.85rem' }}>
+            Granularity
+            <select
+              value={trendGranularity}
+              onChange={(event) => setTrendGranularity(event.target.value as 'daily' | 'weekly')}
+              style={{ marginLeft: 8 }}
+            >
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </label>
+        </div>
+
+        {trendData.length > 0 ? (
           <div style={{ marginTop: 24 }}>
-            <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.85rem' }}>Last 30 days — hover a column to see the date</p>
-            <TrendChart data={dailyMetrics} />
+            <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.85rem' }}>
+              {isLoadingTrends ? 'Refreshing trends...' : `Last ${trendWindowDays} days (${trendGranularity}) - hover a column to see period start`}
+            </p>
+            <TrendChart data={trendData} />
             <div className="chart-legend">
               <span><span className="legend-dot" style={{ background: 'var(--signal)' }} />New matches</span>
               <span><span className="legend-dot" style={{ background: '#a3c1ff' }} />First messages</span>
               <span><span className="legend-dot" style={{ background: 'var(--warning)' }} />First replies</span>
               <span><span className="legend-dot" style={{ background: 'var(--danger)' }} />Nudges sent</span>
+              <span><span className="legend-dot" style={{ background: '#65f0b4' }} />Nudges acted</span>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <p className="muted" style={{ marginTop: 18 }}>{isLoadingTrends ? 'Loading trends...' : 'No trend data in selected window.'}</p>
+        )}
       </section>
 
       <section className="glass-panel funnel-section">
@@ -334,7 +401,7 @@ export default function DashboardPage() {
                 {!report.isReviewed && (
                   <button
                     type="button"
-                    className="ghost-button"
+                    className="ghost-button outline-button-strong"
                     style={{ marginTop: 8, padding: '6px 14px', fontSize: '0.8rem' }}
                     onClick={async () => {
                       await adminApi.reviewReport(report.id);

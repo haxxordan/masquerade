@@ -39,36 +39,19 @@ export default function LoginPage() {
       <div className="login-grid">
         <section className="glass-panel hero-card">
           <div>
-            <div className="eyebrow">Separate operator surface</div>
-            <h1 className="hero-title">Masquerade control room.</h1>
+            <div className="eyebrow">Admin access</div>
+            <h1 className="hero-title">Control room</h1>
             <p className="hero-copy">
-              A dedicated portal for reviewing accounts, mutual matches, and directional likes without mixing
-              operator identity into the public dating app.
+              Review accounts, matches, messaging health, and reports.
             </p>
           </div>
 
-          <div>
-            <div className="hero-stats">
-              <div className="hero-stat">
-                <strong>Users</strong>
-                <span className="muted">Scan who exists, who onboarded, and who has no profile yet.</span>
-              </div>
-              <div className="hero-stat">
-                <strong>Likes</strong>
-                <span className="muted">Inspect outbound and inbound interest without joining tables by hand.</span>
-              </div>
-              <div className="hero-stat">
-                <strong>Matches</strong>
-                <span className="muted">See relationship state and message volume from one place.</span>
-              </div>
-            </div>
-          </div>
+          <p className="muted" style={{ margin: 0 }}>Use your admin credentials to continue.</p>
         </section>
 
         <section className="glass-panel form-card">
-          <div className="eyebrow">Admin sign-in</div>
-          <h2 style={{ marginTop: 0, fontSize: '2rem' }}>Portal login</h2>
-          <p className="muted">This does not use the regular user auth store or endpoints.</p>
+          <div className="eyebrow">Sign in</div>
+          <h2 style={{ marginTop: 0, fontSize: '2rem' }}>Admin portal</h2>
 
           <form className="form-stack" onSubmit={handleSubmit}>
             <div className="form-field">
@@ -98,7 +81,7 @@ export default function LoginPage() {
             <div className="error-text">{error}</div>
 
             <button className="primary-button" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in...' : 'Enter admin portal'}
+              {isSubmitting ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
         </section>
