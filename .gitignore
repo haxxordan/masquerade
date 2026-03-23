@@ -1,6 +1,7 @@
 node_modules
-api/DatingApi/bin/
-api/DatingApi/obj/
+**/bin/
+**/obj/
+TestResults/
 .turbo/
 dist/
 build/
