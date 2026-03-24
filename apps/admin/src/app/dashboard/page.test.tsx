@@ -153,11 +153,13 @@ describe('DashboardPage smoke tests', () => {
     const user = userEvent.setup();
     render(<DashboardPage />);
 
+    expect(await screen.findByText('1 pending')).toBeInTheDocument();
     const reviewButton = await screen.findByRole('button', { name: 'Mark reviewed' });
     await user.click(reviewButton);
 
     await waitFor(() => {
       expect(adminApiMock.reviewReport).toHaveBeenCalledWith('r1');
+      expect(adminApiMock.reviewReport).toHaveBeenCalledTimes(1);
     });
   });
 });
