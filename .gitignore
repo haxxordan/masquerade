@@ -13,3 +13,11 @@ coverage/
 .vscode/
 .next/
 api/DatingApi/appsettings.Development.json
+
+# Expo / React Native local artifacts
+.expo/
+.expo-shared/
+**/.expo/
+**/.expo-shared/
+**/.expo-export-test/
+**/web-build/

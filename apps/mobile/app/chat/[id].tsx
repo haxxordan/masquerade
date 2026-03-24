@@ -44,7 +44,7 @@ export default function ChatScreen() {
   const userId = useAuthStore(s => s.userId);
   const {
     matches, messages, setMessages, addMessage,
-    markRead, typingByMatchId, applyReadReceipt,
+    markRead, typingByMatchId, applyReadReceipt, setActiveMatch,
   } = useMatchStore();
 
   const match = matches.find(m => m.id === matchId);
@@ -68,6 +68,13 @@ export default function ChatScreen() {
   const lastReadMessage = [...currentMessages]
     .reverse()
     .find(m => m.senderId === userId && m.readAt);
+
+  // ── Track active match for unread suppression ─────────────────────────────────
+  useEffect(() => {
+    if (!matchId) return;
+    setActiveMatch(matchId);
+    return () => { setActiveMatch(null); };
+  }, [matchId]);
 
   // ── Load messages ────────────────────────────────────────────────────────────
   useEffect(() => {

@@ -60,22 +60,16 @@ export function useSignalR() {
             setTyping(matchId, false);
         });
 
-        connection.on('MessagesRead', (matchId: string, readerUserId: string, readAt: string) => {
-            applyReadReceipt(matchId, readerUserId, readAt);
+        connection.on('MessagesRead', (data: { matchId: string; readerUserId: string; readAt: string }) => {
+            applyReadReceipt(data.matchId, data.readerUserId, data.readAt);
         });
 
-        let started = false;
         connection.start()
-            .then(() => { started = true; })
             .catch(err => console.warn('[SignalR] connect error:', err));
 
         return () => {
             hubConnection.current = null;
-            if (started) {
-                connection.stop().catch(() => { });
-            } else {
-                connection.stop().catch(() => { });
-            }
+            connection.stop().catch(() => { });
         };
     }, [token]);
 }

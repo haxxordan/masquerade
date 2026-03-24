@@ -19,15 +19,15 @@
     "@microsoft/signalr": "^10.0.0",
     "@tailwindcss/postcss": "^4.2.1",
     "next": "^16.1.6",
-    "react": "^19.2.4",
-    "react-dom": "^19.2.4",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "sonner": "^2.0.7",
     "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.2.1",
     "@types/node": "^25.3.3",
-    "@types/react": "^19.2.14",
+    "@types/react": "^19.1.10",
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.8",
     "tailwindcss": "^4.2.1",

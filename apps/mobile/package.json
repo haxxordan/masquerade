@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "main": "expo-router/entry",
   "scripts": {
-    "dev": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web",
+    "dev": "EXPO_ROUTER_APP_ROOT=./app expo start --clear",
+    "dev:8090": "expo start --clear --port 8090",
+    "android": "EXPO_ROUTER_APP_ROOT=./app expo start --android --clear",
+    "ios": "EXPO_ROUTER_APP_ROOT=./app expo start --ios --clear",
+    "web": "EXPO_ROUTER_APP_ROOT=./app expo start --web --clear",
+    "bundle:android": "EXPO_ROUTER_APP_ROOT=./app EXPO_ROUTER_IMPORT_MODE=sync expo export --platform android --clear --output-dir .expo-export-test",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -15,22 +17,26 @@
     "@dating/types": "file:../../packages/types",
     "@microsoft/signalr": "^8.0.7",
     "expo": "^54.0.33",
-    "expo-image-picker": "~16.0.6",
+    "expo-constants": "~18.0.13",
+    "expo-image-picker": "~17.0.10",
+    "expo-linking": "~8.0.11",
     "expo-notifications": "^0.32.16",
-    "expo-router": "~4.0.17",
-    "expo-secure-store": "~14.0.1",
-    "expo-status-bar": "~2.0.1",
+    "expo-router": "~6.0.23",
+    "expo-secure-store": "~15.0.8",
+    "expo-status-bar": "~3.0.9",
     "nativewind": "^4.1.23",
-    "react": "18.3.1",
-    "react-native": "^0.75.5",
-    "react-native-reanimated": "~3.16.2",
-    "react-native-safe-area-context": "4.12.0",
-    "react-native-screens": "~4.4.0"
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "web-streams-polyfill": "^4.0.0-beta.3"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/node": "^25.3.3",
-    "babel-preset-expo": "^10.0.2",
+    "babel-preset-expo": "~54.0.6",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2"
   }

@@ -56,7 +56,7 @@ function AuthGuard() {
         const inAuth = segments[0] === '(auth)';
         const inOnboarding = segments[0] === 'onboarding';
         if (!token && !inAuth) router.replace('/(auth)/login');
-        if (token && inAuth) router.replace('/(tabs)/browse');
+        if (token && (inAuth || segments[0] === undefined || segments[0] === 'index')) router.replace('/(tabs)/browse');
     }, [token, segments, hydrated]);
 
     return null;
