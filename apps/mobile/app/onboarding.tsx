@@ -184,7 +184,7 @@ export default function OnboardingScreen() {
                   <TouchableOpacity
                     key={l}
                     onPress={() => setLookingFor(l)}
-                    className={`px-4 py-2 rounded-full border mr-2 mb-2 ${lookingFor === l ? 'bg-purple-500 border-purple-500' : 'border-white/20'}`}
+                    className={`px-4 py-2 rounded-full border mr-2 mb-2 ${lookingFor === l ? 'bg-[#ff6699] border-[#ff6699]' : 'border-white/20'}`}
                   >
                     <Text className={lookingFor === l ? 'text-white font-semibold text-sm' : 'text-white/50 text-sm'}>
                       {l}
@@ -247,7 +247,7 @@ export default function OnboardingScreen() {
                 <TouchableOpacity
                   key={h}
                   onPress={() => toggle(h, selectedHobbies, setSelectedHobbies)}
-                  className={`px-4 py-2 rounded-full border mr-2 mb-2 ${selectedHobbies.includes(h) ? 'bg-purple-500 border-purple-500' : 'border-white/20'}`}
+                  className={`px-4 py-2 rounded-full border mr-2 mb-2 ${selectedHobbies.includes(h) ? 'bg-[#ff6699] border-[#ff6699]' : 'border-white/20'}`}
                 >
                   <Text className={selectedHobbies.includes(h) ? 'text-white font-semibold text-sm' : 'text-white/50 text-sm'}>
                     {h}

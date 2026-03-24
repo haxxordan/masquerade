@@ -24,6 +24,7 @@ function MatchesTabIcon({ color }: { color: string }) {
 export default function TabsLayout() {
   return (
     <Tabs screenOptions={{
+      sceneStyle: { backgroundColor: '#000' },
       tabBarStyle: { backgroundColor: '#000', borderTopColor: 'rgba(255,255,255,0.08)' },
       tabBarActiveTintColor: '#ff6699',
       tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',

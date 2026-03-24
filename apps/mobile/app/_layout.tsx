@@ -75,7 +75,7 @@ export default function RootLayout() {
             <AuthGuard />
             {token && <SignalRMounter />}
             <StatusBar style="light" />
-            <Stack screenOptions={{ headerShown: false }} />
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }} />
         </>
     );
 }

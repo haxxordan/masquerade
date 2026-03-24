@@ -18,8 +18,15 @@ export default function LoginScreen() {
       const auth = await authApi.login(form);
       setAuth(auth);
       router.replace('/(tabs)/browse');
-    } catch {
-      setError('Invalid credentials');
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (!status) {
+        setError('Cannot reach API server from phone. Check EXPO_PUBLIC_API_URL and server bind address.');
+      } else if (status === 401) {
+        setError('Invalid credentials');
+      } else {
+        setError('Sign-in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
