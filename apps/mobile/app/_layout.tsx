@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useSignalR } from '../hooks/useSignalR';
+import { apiUrl } from '../lib/env';
 import '../global.css';
 
-createApiClient(process.env.EXPO_PUBLIC_API_URL!);
+createApiClient(apiUrl);
 
 const SECURE_KEY = 'masquerade-auth';
 

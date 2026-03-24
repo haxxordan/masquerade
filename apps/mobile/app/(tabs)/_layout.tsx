@@ -24,9 +24,9 @@ function MatchesTabIcon({ color }: { color: string }) {
 export default function TabsLayout() {
   return (
     <Tabs screenOptions={{
-      tabBarStyle: { backgroundColor: '#111', borderTopColor: '#222' },
+      tabBarStyle: { backgroundColor: '#000', borderTopColor: 'rgba(255,255,255,0.08)' },
       tabBarActiveTintColor: '#ff6699',
-      tabBarInactiveTintColor: '#666',
+      tabBarInactiveTintColor: 'rgba(255,255,255,0.4)',
       headerShown: false,
     }}>
       <Tabs.Screen name="browse" options={{ title: 'Discover',

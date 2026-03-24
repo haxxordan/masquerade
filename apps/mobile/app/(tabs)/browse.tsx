@@ -42,7 +42,7 @@ export default function BrowseScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <Text className="text-2xl font-bold text-pink-400 px-4 pt-12 pb-4">Discover 🐾</Text>
+      <Text className="text-2xl font-bold text-[#ff6699] px-4 pt-12 pb-4">Discover 🐾</Text>
       <FlatList
         data={profiles}
         keyExtractor={p => p.id}
@@ -59,17 +59,17 @@ export default function BrowseScreen() {
               <Text className="text-white font-bold text-lg">{p.displayName}</Text>
               <Text className="text-gray-400 text-sm mb-2">{p.animalType}</Text>
               {!!p.compatibilityReasons?.length && (
-                <Text className="text-pink-300 text-xs mb-2">{p.compatibilityReasons[0]}</Text>
+                <Text className="text-[#ff6699]/70 text-xs mb-2">{p.compatibilityReasons[0]}</Text>
               )}
               <View className="flex-row flex-wrap gap-1 mb-3">
                 {p.musicGenres.slice(0, 3).map(g => (
-                  <View key={g} className="bg-gray-800 px-2 py-1 rounded-full">
-                    <Text className="text-pink-300 text-xs">🎵 {g}</Text>
+                  <View key={g} className="border border-[#ff6699]/30 px-2 py-1 rounded-full">
+                    <Text className="text-[#ff6699]/70 text-xs">🎵 {g}</Text>
                   </View>
                 ))}
               </View>
               <TouchableOpacity
-                className={`py-2 rounded-full items-center ${likedIds.has(p.id) ? 'bg-gray-700' : 'bg-pink-500'}`}
+                className={`py-2 rounded-full items-center ${likedIds.has(p.id) ? 'bg-white/10' : 'bg-[#ff6699]'}`}
                 onPress={() => handleLike(p.id)} disabled={likedIds.has(p.id)}>
                 <Text className="text-white font-bold">{likedIds.has(p.id) ? '♥ Liked' : '♥ Like'}</Text>
               </TouchableOpacity>

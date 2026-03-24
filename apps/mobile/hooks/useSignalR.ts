@@ -4,6 +4,7 @@ import { useAuthStore } from '@dating/store';
 import { useMatchStore } from '@dating/store';
 import { matchesApi } from '@dating/api-client';
 import { hubConnection } from '../lib/hubConnection';
+import { apiUrl } from '../lib/env';
 
 /**
  * Establishes a SignalR connection to /hubs/match for the logged-in user.
@@ -28,7 +29,6 @@ export function useSignalR() {
     useEffect(() => {
         if (!token) return;
 
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL ?? '';
         const connection = new signalR.HubConnectionBuilder()
             .withUrl(`${apiUrl}/hubs/match`, {
                 accessTokenFactory: () => token,

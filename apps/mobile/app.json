@@ -5,6 +5,7 @@
     "version": "1.0.0",
     "scheme": "masquerade",
     "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
     "icon": "./assets/icon.png",
     "splash": { "backgroundColor": "#000000" },
     "ios": { "supportsTablet": false, "bundleIdentifier": "com.prophecytech.masquerade" },
