@@ -1,17 +1,36 @@
 import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { matchesApi } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import type { Match } from '@dating/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys, staleTimes } from '../../lib/queryConfig';
 
 export default function MatchesScreen() {
   const { matches, setMatches, unreadMatchIds, markRead, setActiveMatch } = useMatchStore();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  const matchesQuery = useQuery({
+    queryKey: queryKeys.matches,
+    queryFn: () => matchesApi.getMatches(),
+    staleTime: staleTimes.matches,
+  });
+  const { isStale, refetch } = matchesQuery;
 
   useEffect(() => {
-    matchesApi.getMatches().then(setMatches).catch(() => { });
-  }, []);
+    if (matchesQuery.data) {
+      setMatches(matchesQuery.data);
+    }
+  }, [matchesQuery.data, setMatches]);
+
+  useFocusEffect(useCallback(() => {
+    if (isStale) {
+      refetch().catch(() => { });
+    }
+  }, [isStale, refetch]));
 
   const openChat = (m: Match) => {
     setActiveMatch(m.id);
@@ -21,7 +40,9 @@ export default function MatchesScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <Text className="text-2xl font-bold text-[#ff6699] px-4 pt-14 pb-4">Matches 💖</Text>
+      <Text className="text-2xl font-bold text-[#ff6699] px-4 pb-4" style={{ paddingTop: insets.top + 12 }}>
+        Matches 💖
+      </Text>
 
       {matches.length === 0 && (
         <Text className="text-white/30 px-4 text-sm">No matches yet. Keep liking!</Text>
@@ -30,6 +51,8 @@ export default function MatchesScreen() {
       <FlatList
         data={matches}
         keyExtractor={m => m.id}
+        refreshing={matchesQuery.isRefetching && !matchesQuery.isLoading}
+        onRefresh={() => refetch().catch(() => { })}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         renderItem={({ item: m }) => {
           const other = m.otherProfile;

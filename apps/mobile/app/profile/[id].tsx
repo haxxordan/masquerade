@@ -1,9 +1,11 @@
-import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, TextInput } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, TextInput, RefreshControl } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { profilesApi, matchesApi } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
-import type { Profile } from '@dating/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, staleTimes } from '../../lib/queryConfig';
 import type { ReportReason } from '@dating/api-client';
 
 const REPORT_REASONS: ReportReason[] = ['Spam', 'Harassment', 'FakeProfile', 'Other'];
@@ -12,8 +14,18 @@ export default function ProfileScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const { matches } = useMatchStore();
+    const insets = useSafeAreaInsets();
+    const queryClient = useQueryClient();
 
-    const [profile, setProfile] = useState<Profile | null>(null);
+    const profileQuery = useQuery({
+        queryKey: queryKeys.profile(id),
+        queryFn: () => profilesApi.get(id),
+        staleTime: staleTimes.profile,
+        enabled: !!id,
+    });
+    const { isStale, refetch } = profileQuery;
+    const profile = profileQuery.data ?? null;
+
     const [liked, setLiked] = useState(false);
     const [matched, setMatched] = useState(false);
     const [blocked, setBlocked] = useState(false);
@@ -26,22 +38,39 @@ export default function ProfileScreen() {
     const [reporting, setReporting] = useState(false);
 
     useEffect(() => {
-        profilesApi.get(id).then(p => {
-            setProfile(p);
+        if (profile) {
+            const p = profile;
             setLiked(p.likeStatus === 'Liked' || p.likeStatus === 'Matched');
             setMatched(p.likeStatus === 'Matched');
-        }).catch(() => { });
-    }, [id]);
+        }
+    }, [profile]);
+
+    useFocusEffect(useCallback(() => {
+        if (isStale) {
+            refetch().catch(() => { });
+        }
+    }, [isStale, refetch]));
 
     // Find existing match ID if matched
     const matchId = matched
         ? matches.find(m => m.otherProfile?.id === profile?.id)?.id ?? null
         : null;
 
-    if (!profile) {
+    if (profileQuery.isLoading && !profile) {
         return (
             <View className="flex-1 bg-black items-center justify-center">
                 <ActivityIndicator color="#ff6699" />
+            </View>
+        );
+    }
+
+    if (!profile) {
+        return (
+            <View className="flex-1 bg-black items-center justify-center px-8">
+                <Text className="text-white/40 text-center mb-4">Couldn't load this profile.</Text>
+                <TouchableOpacity onPress={() => refetch().catch(() => { })}>
+                    <Text className="text-[#ff6699]">Retry</Text>
+                </TouchableOpacity>
             </View>
         );
     }
@@ -64,6 +93,9 @@ export default function ProfileScreen() {
                                 await matchesApi.unlike(profile.id);
                                 setLiked(false);
                                 setMatched(false);
+                                queryClient.invalidateQueries({ queryKey: queryKeys.matches }).catch(() => { });
+                                queryClient.invalidateQueries({ queryKey: queryKeys.browseProfiles }).catch(() => { });
+                                refetch().catch(() => { });
                             } catch { }
                         },
                     },
@@ -73,6 +105,9 @@ export default function ProfileScreen() {
             const result = await matchesApi.like(profile.id);
             setLiked(true);
             if (result.matched) setMatched(true);
+            queryClient.invalidateQueries({ queryKey: queryKeys.matches }).catch(() => { });
+            queryClient.invalidateQueries({ queryKey: queryKeys.browseProfiles }).catch(() => { });
+            refetch().catch(() => { });
         }
     };
 
@@ -109,8 +144,8 @@ export default function ProfileScreen() {
     return (
         <View className="flex-1 bg-black">
             {/* Header */}
-            <View className="px-5 pt-14 pb-3 flex-row items-center justify-between border-b border-white/10">
-                <TouchableOpacity onPress={() => router.back()}>
+            <View className="px-5 pb-3 flex-row items-center justify-between border-b border-white/10" style={{ paddingTop: insets.top + 10 }}>
+                <TouchableOpacity onPress={() => router.back()} className="px-3 py-2 -mx-3 -my-2" hitSlop={8}>
                     <Text className="text-white/50 text-sm">← back</Text>
                 </TouchableOpacity>
                 <View className="flex-row gap-3">
@@ -124,22 +159,32 @@ export default function ProfileScreen() {
                         <>
                             <TouchableOpacity
                                 onPress={() => setShowReportPanel(v => !v)}
-                                className="border border-white/10 px-3 py-1 rounded-full"
+                                className="border border-white/10 px-4 py-2 rounded-full"
+                                hitSlop={8}
                             >
-                                <Text className="text-white/30 text-xs">report</Text>
+                                <Text className="text-white/30 text-sm">report</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={handleBlock}
-                                className="border border-white/10 px-3 py-1 rounded-full"
+                                className="border border-white/10 px-4 py-2 rounded-full"
+                                hitSlop={8}
                             >
-                                <Text className="text-white/30 text-xs">block</Text>
+                                <Text className="text-white/30 text-sm">block</Text>
                             </TouchableOpacity>
                         </>
                     )}
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+            <ScrollView
+                contentContainerStyle={{ padding: 20, gap: 16 }}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={profileQuery.isRefetching && !profileQuery.isLoading}
+                        onRefresh={() => refetch().catch(() => { })}
+                    />
+                }
+            >
                 {/* Avatar & identity */}
                 <View className="items-center gap-2">
                     {profile.animalAvatarUrl ? (

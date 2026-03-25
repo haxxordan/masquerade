@@ -5,8 +5,10 @@ import { useAuthStore } from '@dating/store';
 import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useSignalR } from '../hooks/useSignalR';
 import { apiUrl } from '../lib/env';
+import { queryClientDefaultOptions } from '../lib/queryConfig';
 import '../global.css';
 
 createApiClient(apiUrl);
@@ -70,12 +72,14 @@ function SignalRMounter() {
 
 export default function RootLayout() {
     const token = useAuthStore(s => s.token);
+    const [queryClient] = useState(() => new QueryClient({ defaultOptions: queryClientDefaultOptions }));
+
     return (
-        <>
+        <QueryClientProvider client={queryClient}>
             <AuthGuard />
             {token && <SignalRMounter />}
             <StatusBar style="light" />
             <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#000' } }} />
-        </>
+        </QueryClientProvider>
     );
 }

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { profilesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   MUSIC_GENRES, HOBBY_OPTIONS, GENDER_OPTIONS, LOOKING_FOR_OPTIONS,
 } from '@dating/types';
@@ -41,6 +42,7 @@ function PillButton({
 export default function OnboardingScreen() {
   const router = useRouter();
   const setProfile = useAuthStore(s => s.setProfile);
+  const insets = useSafeAreaInsets();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
@@ -99,7 +101,7 @@ export default function OnboardingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {/* Progress bar */}
-      <View className="px-6 pt-14 pb-4">
+      <View className="px-6 pb-4" style={{ paddingTop: insets.top + 10 }}>
         <View className="flex-row gap-1">
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <View

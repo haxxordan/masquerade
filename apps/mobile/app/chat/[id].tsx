@@ -1,11 +1,12 @@
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  Image, KeyboardAvoidingView, Platform, ActivityIndicator,
+  Image, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { matchesApi } from '@dating/api-client';
 import { useMatchStore, useAuthStore } from '@dating/store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Message, ConversationState } from '@dating/types';
 import { hubConnection } from '../../lib/hubConnection';
 
@@ -41,6 +42,7 @@ function MessageBubble({ message, isMe }: { message: Message; isMe: boolean }) {
 export default function ChatScreen() {
   const { id: matchId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const userId = useAuthStore(s => s.userId);
   const {
     matches, messages, setMessages, addMessage,
@@ -53,10 +55,9 @@ export default function ChatScreen() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [nudging, setNudging] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [openers, setOpeners] = useState<string[]>([]);
-  const [openersDone, setOpenersDone] = useState(false);
   const [convState, setConvState] = useState<ConversationState | null>(null);
-  const [convStateDone, setConvStateDone] = useState(false);
 
   const listRef = useRef<FlatList>(null);
   const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,50 +75,48 @@ export default function ChatScreen() {
     if (!matchId) return;
     setActiveMatch(matchId);
     return () => { setActiveMatch(null); };
-  }, [matchId]);
+  }, [matchId, setActiveMatch]);
 
-  // ── Load messages ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!matchId || messages[matchId]) return;
-    matchesApi.getMessages(matchId).then(msgs => {
-      setMessages(matchId, msgs);
-      markRead(matchId);
-      matchesApi.markRead(matchId).catch(() => { });
-    }).catch(() => { });
-  }, [matchId]);
+  const refreshConversation = useCallback(async () => {
+    if (!matchId) return;
 
-  // Mark read when screen opens (if messages already in store)
-  useEffect(() => {
-    if (!matchId || !messages[matchId]) return;
-    markRead(matchId);
-    matchesApi.markRead(matchId).catch(() => { });
-  }, [matchId]);
+    setRefreshing(true);
+    try {
+      const [messagesResult, openersResult, stateResult] = await Promise.allSettled([
+        matchesApi.getMessages(matchId),
+        matchesApi.getOpeners(matchId),
+        matchesApi.getConversationState(matchId),
+      ]);
 
-  // ── Load smart openers (404 = feature disabled) ──────────────────────────────
-  useEffect(() => {
-    if (!matchId || openersDone) return;
-    setOpenersDone(true);
-    matchesApi.getOpeners(matchId)
-      .then(data => setOpeners(data.suggestions))
-      .catch((err: unknown) => {
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        if (status !== 404) console.warn('[chat] openers error', err);
+      if (messagesResult.status === 'fulfilled') {
+        setMessages(matchId, messagesResult.value);
+        markRead(matchId);
+        matchesApi.markRead(matchId).catch(() => { });
+      }
+
+      if (openersResult.status === 'fulfilled') {
+        setOpeners(openersResult.value.suggestions);
+      } else {
+        const status = (openersResult.reason as { response?: { status?: number } })?.response?.status;
+        if (status !== 404) console.warn('[chat] openers error', openersResult.reason);
         setOpeners([]);
-      });
-  }, [matchId, openersDone]);
+      }
 
-  // ── Load conversation state (404 = feature disabled) ─────────────────────────
-  useEffect(() => {
-    if (!matchId || convStateDone) return;
-    setConvStateDone(true);
-    matchesApi.getConversationState(matchId)
-      .then(state => setConvState(state))
-      .catch((err: unknown) => {
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        if (status !== 404) console.warn('[chat] conv state error', err);
+      if (stateResult.status === 'fulfilled') {
+        setConvState(stateResult.value);
+      } else {
+        const status = (stateResult.reason as { response?: { status?: number } })?.response?.status;
+        if (status !== 404) console.warn('[chat] conv state error', stateResult.reason);
         setConvState(null);
-      });
-  }, [matchId, convStateDone]);
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [markRead, matchId, setMessages]);
+
+  useFocusEffect(useCallback(() => {
+    refreshConversation().catch(() => { });
+  }, [refreshConversation]));
 
   // ── Auto-scroll on new messages ───────────────────────────────────────────────
   useEffect(() => {
@@ -198,8 +197,8 @@ export default function ChatScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       {/* ── Header ── */}
-      <View className="px-4 pt-14 pb-3 flex-row items-center gap-3 border-b border-white/10">
-        <TouchableOpacity onPress={() => router.back()} className="pr-2">
+      <View className="px-4 pb-3 flex-row items-center gap-3 border-b border-white/10" style={{ paddingTop: insets.top + 10 }}>
+        <TouchableOpacity onPress={() => router.back()} className="px-2 py-2 -mx-2 -my-2" hitSlop={8}>
           <Text className="text-white/50 text-sm">←</Text>
         </TouchableOpacity>
 
@@ -238,6 +237,12 @@ export default function ChatScreen() {
         data={currentMessages}
         keyExtractor={m => m.id}
         renderItem={renderMessage}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => refreshConversation().catch(() => { })}
+          />
+        }
         contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
         ListEmptyComponent={

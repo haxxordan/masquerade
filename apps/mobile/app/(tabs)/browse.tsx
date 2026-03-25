@@ -1,51 +1,83 @@
 import { View, Text, FlatList, Image, TouchableOpacity } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { profilesApi, matchesApi } from '@dating/api-client';
 import type { Profile } from '@dating/types';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, staleTimes } from '../../lib/queryConfig';
 
 export default function BrowseScreen() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const loadProfiles = async () => {
-      try {
-        const topPicks = await profilesApi.topPicks({ page: 0, pageSize: 10 });
-        setProfiles(topPicks);
-        setLikedIds(new Set(topPicks
-          .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
-          .map(p => p.id)));
-      } catch (error: unknown) {
-        const status = (error as { response?: { status?: number } })?.response?.status;
-        if (status !== 404) throw error;
+  const loadProfiles = useCallback(async (): Promise<Profile[]> => {
+    try {
+      return await profilesApi.topPicks({ page: 0, pageSize: 10 });
+    } catch (error: unknown) {
+      const status = (error as { response?: { status?: number } })?.response?.status;
+      if (status !== 404) throw error;
 
-        const suggested = await profilesApi.suggest({});
-        setProfiles(suggested);
-        setLikedIds(new Set(suggested
-          .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
-          .map(p => p.id)));
-      }
-    };
-
-    loadProfiles().catch(err => {
-      console.error('Failed to load browse profiles:', err);
-      setProfiles([]);
-    });
+      return profilesApi.suggest({});
+    }
   }, []);
 
+  const browseQuery = useQuery({
+    queryKey: queryKeys.browseProfiles,
+    queryFn: loadProfiles,
+    staleTime: staleTimes.browseProfiles,
+  });
+  const { isStale, refetch } = browseQuery;
+
+  const profiles = browseQuery.data ?? [];
+  const likedIds = useMemo(() => new Set(
+    profiles
+      .filter(p => p.likeStatus === 'Liked' || p.likeStatus === 'Matched')
+      .map(p => p.id)
+  ), [profiles]);
+
+  const likeMutation = useMutation({
+    mutationFn: (id: string) => matchesApi.like(id),
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.browseProfiles });
+      const previous = queryClient.getQueryData<Profile[]>(queryKeys.browseProfiles);
+      queryClient.setQueryData<Profile[]>(queryKeys.browseProfiles, current =>
+        (current ?? []).map(p => p.id === id ? { ...p, likeStatus: p.likeStatus === 'Matched' ? 'Matched' : 'Liked' } : p)
+      );
+      return { previous };
+    },
+    onError: (_error, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.browseProfiles, context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.browseProfiles }).catch(() => { });
+      queryClient.invalidateQueries({ queryKey: queryKeys.matches }).catch(() => { });
+    },
+  });
+
+  useFocusEffect(useCallback(() => {
+    if (isStale) {
+      refetch().catch(() => { });
+    }
+  }, [isStale, refetch]));
+
   const handleLike = async (id: string) => {
-    await matchesApi.like(id);
-    setLikedIds(prev => new Set([...prev, id]));
+    await likeMutation.mutateAsync(id);
   };
 
   return (
     <View className="flex-1 bg-black">
-      <Text className="text-2xl font-bold text-[#ff6699] px-4 pt-12 pb-4">Discover 🐾</Text>
+      <Text className="text-2xl font-bold text-[#ff6699] px-4 pb-4" style={{ paddingTop: insets.top + 12 }}>
+        Discover 🐾
+      </Text>
       <FlatList
         data={profiles}
         keyExtractor={p => p.id}
+        refreshing={browseQuery.isRefetching && !browseQuery.isLoading}
+        onRefresh={() => refetch().catch(() => { })}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
         renderItem={({ item: p }) => (
           <TouchableOpacity className="bg-gray-900 rounded-2xl overflow-hidden border border-gray-800"
@@ -76,6 +108,13 @@ export default function BrowseScreen() {
             </View>
           </TouchableOpacity>
         )}
+        ListEmptyComponent={
+          browseQuery.isLoading ? (
+            <Text className="text-white/30 px-4 text-sm">Loading profiles...</Text>
+          ) : (
+            <Text className="text-white/30 px-4 text-sm">No profiles right now. Pull to refresh.</Text>
+          )
+        }
       />
     </View>
   );

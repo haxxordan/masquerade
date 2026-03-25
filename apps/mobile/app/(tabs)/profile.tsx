@@ -2,9 +2,13 @@ import {
   View, Text, ScrollView, TextInput, TouchableOpacity,
   Image, ActivityIndicator, Alert,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { profilesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys, staleTimes } from '../../lib/queryConfig';
 import {
   MUSIC_GENRES, HOBBY_OPTIONS, GENDER_OPTIONS, LOOKING_FOR_OPTIONS,
 } from '@dating/types';
@@ -43,10 +47,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function MyProfileScreen() {
   const { profile: storeProfile, setProfile } = useAuthStore();
-  const [profile, setLocalProfile] = useState<Profile | null>(storeProfile);
+  const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(!storeProfile);
-  const [saving, setSaving] = useState(false);
 
   // Editable fields
   const [displayName, setDisplayName] = useState('');
@@ -59,15 +62,36 @@ export default function MyProfileScreen() {
   const [faith, setFaith] = useState('');
   const [political, setPolitical] = useState('');
 
+  const myProfileQuery = useQuery({
+    queryKey: queryKeys.myProfile,
+    queryFn: () => profilesApi.getMe(),
+    staleTime: staleTimes.myProfile,
+    initialData: storeProfile ?? undefined,
+  });
+
+  const { isStale, refetch } = myProfileQuery;
+  const profile = myProfileQuery.data ?? null;
+
   useEffect(() => {
-    profilesApi.getMe()
-      .then(p => {
-        setLocalProfile(p);
-        setProfile(p);
-      })
-      .catch(() => { })
-      .finally(() => setLoading(false));
-  }, []);
+    if (myProfileQuery.data) {
+      setProfile(myProfileQuery.data);
+    }
+  }, [myProfileQuery.data, setProfile]);
+
+  useFocusEffect(useCallback(() => {
+    if (isStale) {
+      refetch().catch(() => { });
+    }
+  }, [isStale, refetch]));
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof profilesApi.update>[0]) => profilesApi.update(payload),
+    onSuccess: updated => {
+      queryClient.setQueryData(queryKeys.myProfile, updated);
+      setProfile(updated);
+      setEditing(false);
+    },
+  });
 
   const startEdit = () => {
     if (!profile) return;
@@ -84,9 +108,8 @@ export default function MyProfileScreen() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     try {
-      const updated = await profilesApi.update({
+      await updateProfileMutation.mutateAsync({
         displayName,
         animalType,
         animalAvatarUrl,
@@ -97,13 +120,8 @@ export default function MyProfileScreen() {
         faith: faith || undefined,
         politicalLeaning: political || undefined,
       });
-      setLocalProfile(updated);
-      setProfile(updated);
-      setEditing(false);
     } catch {
       Alert.alert('Error', 'Failed to save profile. Please try again.');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -118,7 +136,7 @@ export default function MyProfileScreen() {
     ]);
   };
 
-  if (loading) {
+  if (myProfileQuery.isLoading) {
     return (
       <View className="flex-1 bg-black items-center justify-center">
         <ActivityIndicator color="#ff6699" />
@@ -130,7 +148,7 @@ export default function MyProfileScreen() {
     return (
       <View className="flex-1 bg-black items-center justify-center px-8">
         <Text className="text-white/40 text-center mb-4">Couldn't load your profile.</Text>
-        <TouchableOpacity onPress={() => setLoading(true)}>
+        <TouchableOpacity onPress={() => refetch().catch(() => { })}>
           <Text className="text-[#ff6699]">Retry</Text>
         </TouchableOpacity>
       </View>
@@ -144,7 +162,7 @@ export default function MyProfileScreen() {
     return (
       <ScrollView className="flex-1 bg-black" contentContainerStyle={{ paddingBottom: 48 }}>
         {/* Header */}
-        <View className="px-5 pt-14 pb-5 flex-row items-center justify-between">
+        <View className="px-5 pb-5 flex-row items-center justify-between" style={{ paddingTop: insets.top + 12 }}>
           <Text className="text-2xl font-bold text-[#ff6699]">My Profile</Text>
           <View className="flex-row gap-3">
             <TouchableOpacity
@@ -239,7 +257,10 @@ export default function MyProfileScreen() {
 
   // ── Edit Mode ────────────────────────────────────────────────────────────────
   return (
-    <ScrollView className="flex-1 bg-black" contentContainerStyle={{ padding: 20, paddingTop: 56, paddingBottom: 60 }}>
+    <ScrollView
+      className="flex-1 bg-black"
+      contentContainerStyle={{ padding: 20, paddingTop: Math.max(insets.top + 20, 56), paddingBottom: 60 }}
+    >
       {/* Header */}
       <View className="flex-row items-center justify-between mb-6">
         <Text className="text-xl font-bold text-[#ff6699]">Edit Profile</Text>
@@ -251,11 +272,11 @@ export default function MyProfileScreen() {
             <Text className="text-white/60 text-sm">Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            className={`bg-[#ff6699] px-4 py-2 rounded-full ${saving ? 'opacity-60' : ''}`}
+            className={`bg-[#ff6699] px-4 py-2 rounded-full ${updateProfileMutation.isPending ? 'opacity-60' : ''}`}
             onPress={handleSave}
-            disabled={saving}
+            disabled={updateProfileMutation.isPending}
           >
-            <Text className="text-white text-sm font-bold">{saving ? 'Saving...' : 'Save'}</Text>
+            <Text className="text-white text-sm font-bold">{updateProfileMutation.isPending ? 'Saving...' : 'Save'}</Text>
           </TouchableOpacity>
         </View>
       </View>
