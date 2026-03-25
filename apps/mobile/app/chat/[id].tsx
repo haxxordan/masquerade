@@ -1,6 +1,6 @@
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  Image, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl,
+  Image, KeyboardAvoidingView, Platform, ActivityIndicator, RefreshControl, Keyboard,
 } from 'react-native';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -56,6 +56,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [nudging, setNudging] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [openers, setOpeners] = useState<string[]>([]);
   const [convState, setConvState] = useState<ConversationState | null>(null);
 
@@ -117,6 +118,23 @@ export default function ChatScreen() {
   useFocusEffect(useCallback(() => {
     refreshConversation().catch(() => { });
   }, [refreshConversation]));
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, e => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // ── Auto-scroll on new messages ───────────────────────────────────────────────
   useEffect(() => {
@@ -194,7 +212,7 @@ export default function ChatScreen() {
     <KeyboardAvoidingView
       className="flex-1 bg-black"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 8 : 0}
     >
       {/* ── Header ── */}
       <View className="px-4 pb-3 flex-row items-center gap-3 border-b border-white/10" style={{ paddingTop: insets.top + 10 }}>
@@ -253,7 +271,12 @@ export default function ChatScreen() {
       />
 
       {/* ── Input area ── */}
-      <View className="px-4 py-3 border-t border-white/10">
+      <View
+        className="px-4 pt-3 border-t border-white/10"
+        style={{
+          paddingBottom: Math.max(insets.bottom, 12) + (Platform.OS === 'android' ? keyboardHeight : 0),
+        }}
+      >
         {/* Smart opener chips (only when no messages yet) */}
         {currentMessages.length === 0 && openers.length > 0 && (
           <View className="flex-row flex-wrap mb-3">
