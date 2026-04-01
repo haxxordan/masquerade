@@ -32,7 +32,7 @@
     "react-dom": "19.1.0"
   },
   "dependencies": {
-    "next": "^16.1.6",
+    "next": "^16.2.2",
     "styled-jsx": "^5.1.7"
   }
 }

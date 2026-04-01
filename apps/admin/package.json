@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@dating/types": "file:../../packages/types",
-    "next": "^16.1.6",
+    "next": "^16.2.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
@@ -24,6 +24,6 @@
     "@types/react": "^19.1.10",
     "jsdom": "^29.0.1",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.2"
   }
 }
