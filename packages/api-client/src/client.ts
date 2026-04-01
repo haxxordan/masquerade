@@ -1,3 +1,10 @@
+export class ApiError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message || `Request failed with status ${status}.`);
+    this.name = 'ApiError';
+  }
+}
+
 type RequestBody = BodyInit | null | undefined;
 
 type RequestOptions = {
@@ -79,7 +86,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 
   if (!response.ok) {
     const message = await response.text();
-    throw new Error(message || `Request failed with status ${response.status}.`);
+    throw new ApiError(response.status, message);
   }
 
   return parseResponseBody<T>(response);

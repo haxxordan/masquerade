@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { matchesApi } from '@dating/api-client';
+import { matchesApi, ApiError } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
 import { useAuthStore } from '@dating/store';
 import type { Match, Message, ConversationState } from '@dating/types';
@@ -98,7 +98,7 @@ function MatchesContent() {
     // Auto-select match from query param
     useEffect(() => {
         const matchIdParam = searchParams.get('matchId');
-        if (matchIdParam && matches.length > 0) {
+        if (matchIdParam && matches.some(m => m.id === matchIdParam)) {
             setActiveMatch(matchIdParam);
             markRead(matchIdParam);
             handleMarkRead(matchIdParam);
@@ -132,8 +132,8 @@ function MatchesContent() {
                 }));
             })
             .catch((error: unknown) => {
-                const status = (error as { response?: { status?: number } })?.response?.status;
-                if (status !== 404) {
+                const status = error instanceof ApiError ? error.status : undefined;
+                if (status !== 404 && status !== 403) {
                     console.error('Failed to load smart openers:', error);
                 }
 
@@ -156,8 +156,8 @@ function MatchesContent() {
                 }));
             })
             .catch((error: unknown) => {
-                const status = (error as { response?: { status?: number } })?.response?.status;
-                if (status !== 404) {
+                const status = error instanceof ApiError ? error.status : undefined;
+                if (status !== 404 && status !== 403) {
                     console.error('Failed to load conversation state:', error);
                 }
 
