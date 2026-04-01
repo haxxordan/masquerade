@@ -10,7 +10,10 @@
     "build": "turbo run build",
     "lint": "npm run guard:no-axios && turbo run lint",
     "guard:no-axios": "node ./scripts/guard-no-axios.mjs",
-    "type-check": "turbo run type-check"
+    "type-check": "turbo run type-check",
+    "security:js": "npm run guard:no-axios && npm audit --omit=dev --audit-level=high",
+    "security:dotnet": "dotnet list api/DatingApi/DatingApi.csproj package --vulnerable --include-transitive",
+    "security:check": "npm run security:js && npm run security:dotnet"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

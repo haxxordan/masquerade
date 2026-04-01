@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const repoRoot = process.cwd();
 const scanRoots = ['apps', 'packages'];
-const extraFiles = ['package.json', 'package-lock.json', 'README.md'];
+const extraFiles = ['package.json', 'package-lock.json'];
 
 const ignoreDirs = new Set([
   'node_modules',

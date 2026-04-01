@@ -62,6 +62,17 @@ cd apps/admin && npm run dev      # http://localhost:3001
 cd apps/mobile && npx expo start  # Expo dev server (QR code for mobile, w for web)
 ```
 
+## Manual Pre-Deploy Security Check
+If you are deploying manually, run this from the repo root before deploy:
+
+```bash
+npm run security:check
+```
+
+This runs:
+- JS supply-chain checks (`guard:no-axios` + `npm audit` for production deps)
+- .NET vulnerable package scan for `api/DatingApi`
+
 ## Project Structure
 ```
 apps/
