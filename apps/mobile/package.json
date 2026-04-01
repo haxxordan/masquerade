@@ -15,7 +15,7 @@
     "@dating/api-client": "file:../../packages/api-client",
     "@dating/store": "file:../../packages/store",
     "@dating/types": "file:../../packages/types",
-    "@microsoft/signalr": "^8.0.7",
+    "@microsoft/signalr": "^10.0.0",
     "@tanstack/react-query": "^5.95.2",
     "expo": "^54.0.33",
     "expo-constants": "~18.0.13",

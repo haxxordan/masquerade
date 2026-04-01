@@ -1,10 +1,24 @@
 #!/usr/bin/env node
+/**
+ * Guard: banned HTTP / fetch-wrapper packages.
+ *
+ * The project uses native fetch exclusively. The packages below are banned
+ * because they duplicate native capabilities or carry known supply-chain /
+ * security risk. Add new entries to BANNED_PACKAGES to extend coverage.
+ *
+ * Checked locations:
+ *  - dependencies / devDependencies / peerDependencies / optionalDependencies
+ *    / overrides in every package.json under apps/ and packages/ (and root).
+ *  - Any source file import/require of a banned name in those same trees.
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 
 const repoRoot = process.cwd();
 const scanRoots = ['apps', 'packages'];
-const extraFiles = ['package.json', 'package-lock.json'];
+// Only scan root package.json for banned deps — the lockfile is managed by
+// npm and will naturally contain transitive dep names that are not violations.
+const extraFiles = ['package.json'];
 
 const ignoreDirs = new Set([
   'node_modules',
@@ -31,6 +45,40 @@ const textExtensions = new Set([
   '.yml',
 ]);
 
+/**
+ * Map of banned package name → reason shown in the error message.
+ * Keep sorted alphabetically for easy review.
+ */
+const BANNED_PACKAGES = new Map([
+  ['axios',          'Use native fetch instead.'],
+  ['cross-fetch',    'Use native fetch instead.'],
+  ['got',            'Use native fetch instead.'],
+  ['isomorphic-fetch', 'Use native fetch instead.'],
+  ['node-fetch',     'Use native fetch instead (Node 18+ has it built-in).'],
+  ['request',        'Deprecated and unmaintained; use native fetch instead.'],
+  ['superagent',     'Use native fetch instead.'],
+  ['ky',             'Use native fetch instead.'],
+  ['wretch',         'Use native fetch instead.'],
+]);
+
+/**
+ * Regex that matches any banned package name appearing in an ES/CJS import.
+ * Forms matched:
+ *   import ... from 'pkg'
+ *   import 'pkg'
+ *   require('pkg')   require("pkg")
+ * We anchor on the module specifier so generic identifiers (e.g. a local
+ * function called `request`) never produce false positives.
+ */
+const BANNED_IMPORT_RE = new RegExp(
+  `(?:from\\s*|require\\s*\\(\\s*)['"](${[...BANNED_PACKAGES.keys()].map(escapeRe).join('|')})['"]`,
+  'i',
+);
+
+function escapeRe(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 const findings = [];
 
 function isIgnoredDir(dirName) {
@@ -54,9 +102,11 @@ function scanFile(filePath) {
     for (const field of depFields) {
       const deps = pkg[field];
       if (!deps || typeof deps !== 'object') continue;
-      if (Object.prototype.hasOwnProperty.call(deps, 'axios')) {
-        const relative = path.relative(repoRoot, filePath);
-        findings.push(`- ${relative} (${field}.axios)`);
+      for (const [banned, reason] of BANNED_PACKAGES) {
+        if (Object.prototype.hasOwnProperty.call(deps, banned)) {
+          const relative = path.relative(repoRoot, filePath);
+          findings.push(`- ${relative} (${field}.${banned}): ${reason}`);
+        }
       }
     }
 
@@ -68,10 +118,17 @@ function scanFile(filePath) {
   if (filePath.endsWith('.tsbuildinfo')) return;
 
   const content = fs.readFileSync(filePath, 'utf8');
-  if (!/\baxios\b/i.test(content)) return;
+  if (!BANNED_IMPORT_RE.test(content)) return;
 
+  // Report which banned names were imported in this file.
+  const matched = [...BANNED_PACKAGES.keys()].filter((name) =>
+    new RegExp(
+      `(?:from\\s*|require\\s*\\(\\s*)['"](${escapeRe(name)})['"]`,
+      'i',
+    ).test(content),
+  );
   const relative = path.relative(repoRoot, filePath);
-  findings.push(`- ${relative}`);
+  findings.push(`- ${relative} (imports: ${matched.join(', ')})`);
 }
 
 function walkDir(dirPath) {
@@ -103,11 +160,11 @@ for (const file of extraFiles) {
 }
 
 if (findings.length > 0) {
-  console.error('Axios usage detected. Please remove these references:');
+  console.error('Banned HTTP-wrapper package usage detected. Please remove these references:');
   for (const finding of findings) {
     console.error(finding);
   }
   process.exit(1);
 }
 
-console.log('No axios references detected.');
+console.log('No banned HTTP-wrapper packages detected.');

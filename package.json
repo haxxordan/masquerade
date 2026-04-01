@@ -33,7 +33,6 @@
   },
   "dependencies": {
     "next": "^16.1.6",
-    "styled-jsx": "^5.1.7",
-    "web-streams-polyfill": "^4.2.0"
+    "styled-jsx": "^5.1.7"
   }
 }
