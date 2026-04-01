@@ -3,7 +3,7 @@
 ## Stack
 - **Web**: Next.js 16 (App Router) + Tailwind CSS
 - **Mobile**: Expo SDK 52 + React Native + NativeWind
-- **Shared**: TypeScript types, API client (axios), Zustand store
+- **Shared**: TypeScript types, API client, Zustand store
 - **Backend**: .NET 10 Web API + EF Core + PostgreSQL + SignalR
 
 ## Prerequisites
@@ -70,7 +70,7 @@ apps/
   mobile/     Expo React Native app
 packages/
   types/      Shared TypeScript interfaces
-  api-client/ Shared Axios API client
+  api-client/ Shared API client
   store/      Shared Zustand auth/match stores
 api/
   DatingApi/  .NET 10 Web API backend

@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "turbo run lint",
+    "lint": "npm run guard:no-axios && turbo run lint",
+    "guard:no-axios": "node ./scripts/guard-no-axios.mjs",
     "type-check": "turbo run type-check"
   },
   "devDependencies": {

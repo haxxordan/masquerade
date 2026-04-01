@@ -1,57 +1,108 @@
-import axios, { AxiosInstance } from 'axios';
+type RequestBody = BodyInit | null | undefined;
 
-let client: AxiosInstance;
+type RequestOptions = {
+  body?: RequestBody;
+  headers?: HeadersInit;
+  signal?: AbortSignal;
+};
 
-export function createApiClient(baseURL: string): AxiosInstance {
-  client = axios.create({ baseURL, headers: { 'Content-Type': 'application/json' } });
+type ApiClient = {
+  get<T>(path: string, options?: Omit<RequestOptions, 'body'>): Promise<T>;
+  post<T>(path: string, body?: RequestBody, options?: Omit<RequestOptions, 'body'>): Promise<T>;
+  put<T>(path: string, body?: RequestBody, options?: Omit<RequestOptions, 'body'>): Promise<T>;
+  delete<T>(path: string, options?: Omit<RequestOptions, 'body'>): Promise<T>;
+};
 
-  // Read token from localStorage on every request
-  client.interceptors.request.use((config) => {
-    try {
-      const raw = localStorage.getItem('masquerade-auth');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const token = parsed?.state?.token;
-        if (token) config.headers['Authorization'] = `Bearer ${token}`;
-      }
-    } catch { }
-    return config;
+let client: ApiClient | undefined;
+let currentBaseUrl = '';
+let authToken: string | null = null;
+
+function resolveStorageToken(): string | null {
+  try {
+    const raw = localStorage.getItem('masquerade-auth');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.state?.token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function handleUnauthorized() {
+  try {
+    localStorage.removeItem('masquerade-auth');
+  } catch { }
+
+  if (typeof window !== 'undefined') {
+    const path = window.location.pathname;
+    const isAuthPage = path === '/login' || path === '/register';
+    if (!isAuthPage) {
+      window.location.href = '/login';
+    }
+  }
+}
+
+async function parseResponseBody<T>(response: Response): Promise<T> {
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+
+  return JSON.parse(text) as T;
+}
+
+async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
+  if (!currentBaseUrl) throw new Error('API client not initialized.');
+
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+
+  const token = authToken ?? resolveStorageToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${currentBaseUrl}${path}`, {
+    method,
+    headers,
+    body: options.body,
+    signal: options.signal,
   });
 
-  // Handle auth errors globally
-  client.interceptors.response.use(
-    (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
-        try {
-          localStorage.removeItem('masquerade-auth');
-        } catch { }
+  if (response.status === 401) {
+    handleUnauthorized();
+  }
 
-        if (typeof window !== 'undefined') {
-          const path = window.location.pathname;
-          const isAuthPage = path === '/login' || path === '/register'; // Don't redirect if already on an auth page
-          if (!isAuthPage) {
-            window.location.href = '/login';
-          }
-        }
-      }
-      return Promise.reject(error);
-    }
-  );
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Request failed with status ${response.status}.`);
+  }
+
+  return parseResponseBody<T>(response);
+}
+
+export function createApiClient(baseURL: string): ApiClient {
+  currentBaseUrl = baseURL;
+  client = {
+    get: (path, options) => request('GET', path, options),
+    post: (path, body, options) => request('POST', path, { ...options, body }),
+    put: (path, body, options) => request('PUT', path, { ...options, body }),
+    delete: (path, options) => request('DELETE', path, options),
+  };
 
   return client;
 }
 
 export function setAuthToken(token: string | null) {
   if (!client) throw new Error('API client not initialized.');
-  if (token) {
-    client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete client.defaults.headers.common['Authorization'];
-  }
+  authToken = token;
 }
 
-export function getClient(): AxiosInstance {
+export function getClient(): ApiClient {
   if (!client) throw new Error('API client not initialized.');
   return client;
 }

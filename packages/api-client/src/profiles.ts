@@ -5,32 +5,32 @@ export type ReportReason = 'Spam' | 'Harassment' | 'FakeProfile' | 'Other';
 
 export const profilesApi = {
   get: (id: string) =>
-    getClient().get<Profile>(`/api/profiles/${id}`).then(r => r.data),
+    getClient().get<Profile>(`/api/profiles/${id}`),
 
   getMe: () =>
-    getClient().get<Profile>('/api/profiles/me').then(r => r.data),
+    getClient().get<Profile>('/api/profiles/me'),
 
   create: (data: CreateProfileRequest) =>
-    getClient().post<Profile>('/api/profiles', data).then(r => r.data),
+    getClient().post<Profile>('/api/profiles', JSON.stringify(data)),
 
   update: (data: UpdateProfileRequest) =>
-    getClient().put<Profile>('/api/profiles/me', data).then(r => r.data),
+    getClient().put<Profile>('/api/profiles/me', JSON.stringify(data)),
 
   suggest: (query: SuggestQuery) =>
-    getClient().post<Profile[]>('/api/profiles/suggest', query).then(r => r.data),
+    getClient().post<Profile[]>('/api/profiles/suggest', JSON.stringify(query)),
 
   topPicks: (query: SuggestQuery) =>
-    getClient().post<Profile[]>('/api/profiles/top-picks', query).then(r => r.data),
+    getClient().post<Profile[]>('/api/profiles/top-picks', JSON.stringify(query)),
 
   block: (userId: string) =>
-    getClient().post(`/api/profiles/${userId}/block`).then(r => r.data),
+    getClient().post<void>(`/api/profiles/${userId}/block`),
 
   unblock: (userId: string) =>
-    getClient().delete(`/api/profiles/${userId}/block`).then(r => r.data),
+    getClient().delete<void>(`/api/profiles/${userId}/block`),
 
   getBlocked: () =>
-    getClient().get<string[]>('/api/profiles/blocked').then(r => r.data),
+    getClient().get<string[]>('/api/profiles/blocked'),
 
   report: (userId: string, reason: ReportReason, details?: string) =>
-    getClient().post(`/api/profiles/${userId}/report`, { reason, details }).then(r => r.data),
+    getClient().post<void>(`/api/profiles/${userId}/report`, JSON.stringify({ reason, details })),
 };
