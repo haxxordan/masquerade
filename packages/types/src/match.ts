@@ -19,6 +19,7 @@ export interface Match {
   compatibilityReasons?: string[];
   lastMessageAt?: string;
   messageCount?: number;
+  hasUnread?: boolean;
 }
 
 export interface Message {

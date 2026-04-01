@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Lobster } from 'next/font/google';
+import { matchesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
 import { useSignalR } from '@/hooks/useSignalR';
 import { Toaster } from 'sonner';
@@ -14,6 +15,39 @@ function SignalRProvider() {
     return null;
 }
 
+function MatchBootstrapper() {
+    const token = useAuthStore((state) => state.token);
+    const setMatches = useMatchStore((state) => state.setMatches);
+    const resetMatches = useMatchStore((state) => state.reset);
+
+    useEffect(() => {
+        if (!token) {
+            resetMatches();
+            return;
+        }
+
+        let cancelled = false;
+
+        matchesApi.getMatches()
+            .then((matches) => {
+                if (!cancelled) {
+                    setMatches(matches);
+                }
+            })
+            .catch((error: unknown) => {
+                if (!cancelled) {
+                    console.error('Failed to bootstrap matches state:', error);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [token, resetMatches, setMatches]);
+
+    return null;
+}
+
 const lobster = Lobster({ weight: '400', subsets: ['latin'] });
 
 function NavDropdown() {
@@ -21,6 +55,7 @@ function NavDropdown() {
     const ref = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const { profile, logout } = useAuthStore();
+    const resetMatches = useMatchStore((state) => state.reset);
 
     // Close on outside click
     useEffect(() => {
@@ -34,6 +69,7 @@ function NavDropdown() {
     }, []);
 
     const handleLogout = () => {
+        resetMatches();
         logout();
         router.push('/login');
     };
@@ -46,7 +82,7 @@ function NavDropdown() {
             {/* Avatar trigger */}
             <button
                 onClick={() => setOpen(o => !o)}
-                className="w-9 h-9 rounded border-2 overflow-hidden flex items-center justify-center text-lg transition opacity-70 hover:opacity-100"
+                className="relative w-9 h-9 rounded border-2 overflow-hidden flex items-center justify-center text-lg transition opacity-70 hover:opacity-100"
                 style={{ borderColor: '#ff6699' }}
             >
                 {profile?.animalAvatarUrl ? (
@@ -56,6 +92,12 @@ function NavDropdown() {
                         className="w-full h-full object-cover"
                     />
                 ) : '🐾'}
+                {hasUnread && (
+                    <span className="absolute right-0.5 top-0.5 flex h-2.5 w-2.5">
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#ff6699]/70" />
+                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full border border-black bg-[#ff6699]" />
+                    </span>
+                )}
             </button>
 
             {/* Dropdown */}
@@ -90,7 +132,7 @@ function NavDropdown() {
                             <span>💖 matches</span>
                             {hasUnread && (
                                 <span
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
+                                    className="h-2 w-2 rounded-full shrink-0"
                                     style={{ backgroundColor: '#ff6699' }}
                                 />
                             )}
@@ -112,6 +154,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
         <>
             <SignalRProvider />
+            <MatchBootstrapper />
             <Toaster
                 position="bottom-right"
                 theme="dark"

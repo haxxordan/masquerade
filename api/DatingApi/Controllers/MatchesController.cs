@@ -126,6 +126,8 @@ public class MatchesController(
             .Where(m => m.Status == MatchStatus.Matched && (m.User1Id == UserId || m.User2Id == UserId))
             .ToListAsync();
 
+        var matchIds = matches.Select(m => m.Id).ToHashSet();
+
         var otherUserIds = matches
             .Select(m => m.User1Id == UserId ? m.User2Id : m.User1Id)
             .ToHashSet();
@@ -134,6 +136,12 @@ public class MatchesController(
             .Include(p => p.Tags)
             .Where(p => otherUserIds.Contains(p.UserId))
             .ToDictionaryAsync(p => p.UserId);
+
+        var matchesWithUnread = await db.Messages
+            .Where(m => matchIds.Contains(m.MatchId) && m.SenderId != UserId && m.ReadAt == null)
+            .Select(m => m.MatchId)
+            .Distinct()
+            .ToHashSetAsync();
 
         return matches.Select(m =>
         {
@@ -145,7 +153,8 @@ public class MatchesController(
                 m.User2Id,
                 m.Status.ToString(),
                 m.CreatedAt,
-                otherProfile != null ? MatchingService.MapToDto(otherProfile) : null
+                otherProfile != null ? MatchingService.MapToDto(otherProfile) : null,
+                HasUnread: matchesWithUnread.Contains(m.Id)
             );
         }).ToList();
     }

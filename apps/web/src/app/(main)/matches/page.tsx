@@ -40,10 +40,12 @@ function formatSeenTime(value: string) {
 function MatchCard({
     match,
     active,
+    unread,
     onClick,
 }: {
     match: Match;
     active: boolean;
+    unread: boolean;
     onClick: () => void;
 }) {
     const other = match.otherProfile;
@@ -66,7 +68,14 @@ function MatchCard({
                 ) : '🐾'}
             </div>
             <div className="min-w-0">
-                <div className="text-sm font-semibold truncate">{other?.displayName ?? 'Unknown'}</div>
+                <div className="flex items-center gap-2">
+                    <div className={`text-sm truncate ${unread && !active ? 'font-bold text-white' : 'font-semibold'}`}>
+                        {other?.displayName ?? 'Unknown'}
+                    </div>
+                    {unread && (
+                        <span className="h-2 w-2 rounded-full bg-[#ff6699] shrink-0" />
+                    )}
+                </div>
                 <div className="text-xs opacity-40 capitalize truncate">{other?.animalType ?? ''}</div>
             </div>
         </button>
@@ -82,6 +91,7 @@ function MatchesContent() {
         setMatches, setActiveMatch,
         messages, setMessages, addMessage,
         markRead,
+        unreadMatchIds,
         typingByMatchId,
     } = useMatchStore();
 
@@ -274,6 +284,7 @@ function MatchesContent() {
                                 key={m.id}
                                 match={m}
                                 active={m.id === activeMatchId}
+                                unread={unreadMatchIds.has(m.id)}
                                 onClick={() => {
                                     setActiveMatch(m.id);
                                     markRead(m.id);

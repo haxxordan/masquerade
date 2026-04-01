@@ -14,7 +14,8 @@ public record MatchDto(
     int? CompatibilityScore = null,
     List<string>? CompatibilityReasons = null,
     DateTime? LastMessageAt = null,
-    int? MessageCount = null
+    int? MessageCount = null,
+    bool HasUnread = false
 );
 
 public record MessageDto(

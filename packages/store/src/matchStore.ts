@@ -7,6 +7,7 @@ interface MatchState {
   messages: Record<string, Message[]>;
   unreadMatchIds: Set<string>;
   typingByMatchId: Record<string, boolean>;
+  reset: () => void;
   setMatches: (matches: Match[]) => void;
   addMatch: (match: Match) => void;
   removeMatch: (matchId: string) => void;
@@ -25,7 +26,17 @@ export const useMatchStore = create<MatchState>((set) => ({
   messages: {},
   unreadMatchIds: new Set(),
   typingByMatchId: {},
-  setMatches: (matches) => set({ matches }),
+  reset: () => set({
+    matches: [],
+    activeMatchId: null,
+    messages: {},
+    unreadMatchIds: new Set(),
+    typingByMatchId: {},
+  }),
+  setMatches: (matches) => set({
+    matches,
+    unreadMatchIds: new Set(matches.filter(m => m.hasUnread).map(m => m.id)),
+  }),
   addMatch: (match) => set((s) => ({ matches: [match, ...s.matches] })),
   removeMatch: (matchId: string) =>
     set((s) => ({
