@@ -4,6 +4,17 @@ namespace DatingApi.DTOs;
 
 public record LikeResponse(bool Matched, string? MatchId);
 
+public enum ConversationStatus
+{
+    NewMatch,
+    Unread,
+    WaitingForThem,
+    SeenNoReply,
+    Stale,
+    Replied,
+    NoMessages
+}
+
 public record MatchDto(
     string Id,
     string User1Id,
@@ -15,7 +26,10 @@ public record MatchDto(
     List<string>? CompatibilityReasons = null,
     DateTime? LastMessageAt = null,
     int? MessageCount = null,
-    bool HasUnread = false
+    bool HasUnread = false,
+    ConversationStatus ConversationStatus = ConversationStatus.NoMessages,
+    string ConversationStatusLabel = "no messages yet",
+    bool CanNudge = false
 );
 
 public record MessageDto(

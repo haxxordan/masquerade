@@ -23,6 +23,10 @@ public class MatchesController(
     ConversationNudgeService nudgeService,
     IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
+    private static readonly TimeSpan NewMatchWindow = TimeSpan.FromDays(7);
+    private static readonly TimeSpan UnseenStaleAfter = TimeSpan.FromHours(12);
+    private static readonly TimeSpan SeenNoReplyStaleAfter = TimeSpan.FromHours(6);
+    private static readonly TimeSpan NudgeCooldown = TimeSpan.FromHours(24);
     private readonly FeatureFlagsOptions featureFlags = featureFlagsOptions.Value;
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
@@ -68,11 +72,15 @@ public class MatchesController(
 
                 var matchDtoForLikee = new MatchDto(
                     match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
-                    currentUserProfile != null ? MatchingService.MapToDto(currentUserProfile) : null
+                    currentUserProfile != null ? MatchingService.MapToDto(currentUserProfile) : null,
+                    ConversationStatus: ConversationStatus.NewMatch,
+                    ConversationStatusLabel: "new match"
                 );
                 var matchDtoForLiker = new MatchDto(
                     match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
-                    MatchingService.MapToDto(likeeProfile)
+                    MatchingService.MapToDto(likeeProfile),
+                    ConversationStatus: ConversationStatus.NewMatch,
+                    ConversationStatusLabel: "new match"
                 );
 
                 await hub.Clients.User(UserId).SendAsync("NewMatch", matchDtoForLiker);
@@ -143,10 +151,31 @@ public class MatchesController(
             .Distinct()
             .ToHashSetAsync();
 
+        var matchMessages = await db.Messages
+            .AsNoTracking()
+            .Where(m => matchIds.Contains(m.MatchId))
+            .OrderBy(m => m.SentAt)
+            .ToListAsync();
+
+        var messagesByMatchId = matchMessages
+            .GroupBy(m => m.MatchId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var statesByMatchId = await db.ConversationStates
+            .AsNoTracking()
+            .Where(s => matchIds.Contains(s.MatchId))
+            .ToDictionaryAsync(s => s.MatchId);
+
+        var now = DateTime.UtcNow;
+
         return matches.Select(m =>
         {
             var otherUserId = m.User1Id == UserId ? m.User2Id : m.User1Id;
             var otherProfile = otherProfiles.GetValueOrDefault(otherUserId);
+            messagesByMatchId.TryGetValue(m.Id, out var matchMessages);
+            statesByMatchId.TryGetValue(m.Id, out var conversationState);
+            var health = BuildConversationHealth(m, matchMessages ?? [], conversationState, UserId, now);
+
             return new MatchDto(
                 m.Id,
                 m.User1Id,
@@ -154,9 +183,101 @@ public class MatchesController(
                 m.Status.ToString(),
                 m.CreatedAt,
                 otherProfile != null ? MatchingService.MapToDto(otherProfile) : null,
+                m.CompatibilityScore,
+                DeserializeCompatibilityReasons(m.CompatibilityReasonsJson),
+                m.LastMessageAt,
+                m.MessageCount,
                 HasUnread: matchesWithUnread.Contains(m.Id)
+                    || health.Status == ConversationStatus.Unread,
+                ConversationStatus: health.Status,
+                ConversationStatusLabel: health.Label,
+                CanNudge: health.CanNudge
             );
         }).ToList();
+    }
+
+    private sealed record ConversationHealth(ConversationStatus Status, string Label, bool CanNudge);
+
+    private static ConversationHealth BuildConversationHealth(
+        Match match,
+        IReadOnlyList<Message> messages,
+        ConversationState? state,
+        string requesterUserId,
+        DateTime now)
+    {
+        if (messages.Count == 0)
+        {
+            var isNew = now - match.CreatedAt <= NewMatchWindow;
+            return isNew
+                ? new ConversationHealth(ConversationStatus.NewMatch, "new match", false)
+                : new ConversationHealth(ConversationStatus.NoMessages, "no messages yet", false);
+        }
+
+        var firstMessage = messages[0];
+        var firstReply = messages
+            .FirstOrDefault(m => m.SentAt > firstMessage.SentAt && m.SenderId != firstMessage.SenderId);
+        var lastMessage = messages[^1];
+        var hasUnread = messages.Any(m => m.SenderId != requesterUserId && m.ReadAt == null);
+
+        var firstMessageAt = state?.FirstMessageAt ?? firstMessage.SentAt;
+        var firstReplyAt = state?.FirstReplyAt ?? firstReply?.SentAt;
+        var firstReadAt = firstMessage.ReadAt;
+        var isSeenNoReply = firstReadAt.HasValue && !firstReplyAt.HasValue;
+        var isStale = ComputeIsStale(firstMessageAt, firstReplyAt, firstReadAt, now) || state?.IsStale == true;
+        var canNudge = ComputeCanNudge(isStale, state?.LastNudgedAt, now);
+
+        if (hasUnread)
+            return new ConversationHealth(ConversationStatus.Unread, "unread", canNudge);
+
+        if (isStale)
+            return new ConversationHealth(ConversationStatus.Stale, canNudge ? "needs a nudge" : "nudge sent", canNudge);
+
+        if (lastMessage.SenderId == requesterUserId)
+        {
+            if (lastMessage.ReadAt.HasValue || isSeenNoReply)
+                return new ConversationHealth(ConversationStatus.SeenNoReply, "seen, no reply", canNudge);
+
+            return new ConversationHealth(ConversationStatus.WaitingForThem, "waiting for reply", canNudge);
+        }
+
+        return new ConversationHealth(ConversationStatus.Replied, "replied", canNudge);
+    }
+
+    private static bool ComputeIsStale(DateTime? firstMessageAt, DateTime? firstReplyAt, DateTime? firstReadAt, DateTime now)
+    {
+        if (!firstMessageAt.HasValue || firstReplyAt.HasValue)
+            return false;
+
+        if (firstReadAt.HasValue)
+            return now - firstReadAt.Value >= SeenNoReplyStaleAfter;
+
+        return now - firstMessageAt.Value >= UnseenStaleAfter;
+    }
+
+    private static bool ComputeCanNudge(bool isStale, DateTime? lastNudgedAt, DateTime now)
+    {
+        if (!isStale)
+            return false;
+
+        if (!lastNudgedAt.HasValue)
+            return true;
+
+        return now - lastNudgedAt.Value >= NudgeCooldown;
+    }
+
+    private static List<string>? DeserializeCompatibilityReasons(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<List<string>>(json);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
 

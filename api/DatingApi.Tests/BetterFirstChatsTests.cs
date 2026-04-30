@@ -1,6 +1,13 @@
+using System.Security.Claims;
+using DatingApi.Controllers;
 using DatingApi.Data;
 using DatingApi.Domain;
+using DatingApi.Features;
 using DatingApi.Services;
+using DatingApi.DTOs;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
 
 namespace DatingApi.Tests;
@@ -141,6 +148,81 @@ public class BetterFirstChatsTests
         Assert.Equal(replySentAt, match.LastMessageAt);
     }
 
+    [Fact]
+    public async Task GetMatches_ReturnsPassiveConversationHealthWithNudgesFlagDisabled()
+    {
+        await using var db = CreateContext();
+        var now = DateTime.UtcNow;
+
+        db.Profiles.AddRange(
+            CreateProfile("u2", "Unread", "owl"),
+            CreateProfile("u3", "Waiting", "fox"),
+            CreateProfile("u4", "Seen", "cat"),
+            CreateProfile("u5", "Stale", "lynx"),
+            CreateProfile("u6", "Replied", "otter"),
+            CreateProfile("u7", "New", "moth"),
+            CreateProfile("u8", "Cooldown", "hare"));
+
+        db.Matches.AddRange(
+            CreateMatchWithOther("match-unread", "u2", now.AddDays(-2)),
+            CreateMatchWithOther("match-waiting", "u3", now.AddDays(-2)),
+            CreateMatchWithOther("match-seen", "u4", now.AddDays(-2)),
+            CreateMatchWithOther("match-stale", "u5", now.AddDays(-2)),
+            CreateMatchWithOther("match-replied", "u6", now.AddDays(-2)),
+            CreateMatchWithOther("match-new", "u7", now.AddHours(-2)),
+            CreateMatchWithOther("match-cooldown", "u8", now.AddDays(-2)));
+
+        db.Messages.AddRange(
+            new Message { Id = "unread-message", MatchId = "match-unread", SenderId = "u2", Content = "hello", SentAt = now.AddMinutes(-30) },
+            new Message { Id = "waiting-message", MatchId = "match-waiting", SenderId = "u1", Content = "hello", SentAt = now.AddMinutes(-30) },
+            new Message { Id = "seen-message", MatchId = "match-seen", SenderId = "u1", Content = "hello", SentAt = now.AddHours(-2), ReadAt = now.AddHours(-1) },
+            new Message { Id = "stale-message", MatchId = "match-stale", SenderId = "u1", Content = "hello", SentAt = now.AddHours(-13) },
+            new Message { Id = "reply-first", MatchId = "match-replied", SenderId = "u1", Content = "hello", SentAt = now.AddHours(-2), ReadAt = now.AddHours(-1) },
+            new Message { Id = "reply-second", MatchId = "match-replied", SenderId = "u6", Content = "hi", SentAt = now.AddMinutes(-45), ReadAt = now.AddMinutes(-30) },
+            new Message { Id = "cooldown-message", MatchId = "match-cooldown", SenderId = "u1", Content = "hello", SentAt = now.AddHours(-13) });
+
+        db.ConversationStates.Add(new ConversationState
+        {
+            MatchId = "match-cooldown",
+            LastNudgedAt = now.AddHours(-1),
+        });
+
+        await db.SaveChangesAsync();
+
+        var controller = CreateMatchesController(db, new FeatureFlagsOptions
+        {
+            Messaging = new MessagingFeatureFlags { StallNudgesV1 = false },
+        });
+
+        var response = await controller.GetMatches();
+        var matches = Assert.IsType<List<MatchDto>>(response.Value);
+        var byId = matches.ToDictionary(match => match.Id);
+
+        Assert.Equal(ConversationStatus.Unread, byId["match-unread"].ConversationStatus);
+        Assert.Equal("unread", byId["match-unread"].ConversationStatusLabel);
+        Assert.True(byId["match-unread"].HasUnread);
+
+        Assert.Equal(ConversationStatus.WaitingForThem, byId["match-waiting"].ConversationStatus);
+        Assert.Equal("waiting for reply", byId["match-waiting"].ConversationStatusLabel);
+
+        Assert.Equal(ConversationStatus.SeenNoReply, byId["match-seen"].ConversationStatus);
+        Assert.Equal("seen, no reply", byId["match-seen"].ConversationStatusLabel);
+
+        Assert.Equal(ConversationStatus.Stale, byId["match-stale"].ConversationStatus);
+        Assert.Equal("needs a nudge", byId["match-stale"].ConversationStatusLabel);
+        Assert.True(byId["match-stale"].CanNudge);
+
+        Assert.Equal(ConversationStatus.Replied, byId["match-replied"].ConversationStatus);
+        Assert.Equal("replied", byId["match-replied"].ConversationStatusLabel);
+
+        Assert.Equal(ConversationStatus.NewMatch, byId["match-new"].ConversationStatus);
+        Assert.Equal("new match", byId["match-new"].ConversationStatusLabel);
+
+        Assert.Equal(ConversationStatus.Stale, byId["match-cooldown"].ConversationStatus);
+        Assert.Equal("nudge sent", byId["match-cooldown"].ConversationStatusLabel);
+        Assert.False(byId["match-cooldown"].CanNudge);
+    }
+
     private static AppDbContext CreateContext()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -157,6 +239,37 @@ public class BetterFirstChatsTests
         User2Id = "u2",
         Status = MatchStatus.Matched,
     };
+
+    private static Match CreateMatchWithOther(string id, string otherUserId, DateTime createdAt) => new()
+    {
+        Id = id,
+        User1Id = "u1",
+        User2Id = otherUserId,
+        Status = MatchStatus.Matched,
+        CreatedAt = createdAt,
+    };
+
+    private static MatchesController CreateMatchesController(AppDbContext db, FeatureFlagsOptions featureFlags)
+    {
+        var controller = new MatchesController(
+            db,
+            hub: null!,
+            new SmartOpenersService(db),
+            new ConversationNudgeService(db),
+            Options.Create(featureFlags));
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity([
+                    new Claim(ClaimTypes.NameIdentifier, "u1"),
+                ], "test")),
+            },
+        };
+
+        return controller;
+    }
 
     private static Profile CreateProfile(string userId, string displayName, string animalType, params (string Category, string Value)[] tags)
     {

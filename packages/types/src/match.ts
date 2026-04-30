@@ -1,5 +1,13 @@
 export type MatchStatus = 'pending' | 'matched' | 'rejected';
 export type MessageKind = 'Text' | 'System' | 'Nudge';
+export type ConversationStatus =
+  | 'NewMatch'
+  | 'Unread'
+  | 'WaitingForThem'
+  | 'SeenNoReply'
+  | 'Stale'
+  | 'Replied'
+  | 'NoMessages';
 
 export interface Like {
   id: string;
@@ -20,6 +28,9 @@ export interface Match {
   lastMessageAt?: string;
   messageCount?: number;
   hasUnread?: boolean;
+  conversationStatus?: ConversationStatus;
+  conversationStatusLabel?: string;
+  canNudge?: boolean;
 }
 
 export interface Message {

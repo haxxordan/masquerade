@@ -19,6 +19,8 @@ public class ProfilesController(
     MatchingService matching,
     IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
+    private sealed record CompatibilitySummary(int? Score, List<string>? Reasons);
+
     private readonly FeatureFlagsOptions featureFlags = featureFlagsOptions.Value;
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
@@ -44,7 +46,20 @@ public class ProfilesController(
             .Select(m => m.User1Id == requestingUserId ? m.User2Id : m.User1Id)
             .ToHashSetAsync();
 
-        return MatchingService.MapToDto(profile, likedUserIds, matchedUserIds);
+        var requesterProfile = await db.Profiles
+            .Include(p => p.Tags)
+            .FirstOrDefaultAsync(p => p.UserId == requestingUserId);
+
+        var compatibility = requesterProfile != null && requesterProfile.UserId != profile.UserId
+            ? BuildCompatibility(requesterProfile, profile)
+            : new CompatibilitySummary(null, null);
+
+        return MatchingService.MapToDto(
+            profile,
+            likedUserIds,
+            matchedUserIds,
+            compatibility.Score,
+            compatibility.Reasons);
     }
 
 
@@ -181,6 +196,49 @@ public class ProfilesController(
 
         await db.SaveChangesAsync();
         return Ok();
+    }
+
+    private CompatibilitySummary BuildCompatibility(Profile requester, Profile candidate)
+    {
+        var myMusic = requester.Tags
+            .Where(t => t.Category == TagCategory.Music)
+            .Select(t => t.Value)
+            .ToHashSet();
+
+        var myHobbies = requester.Tags
+            .Where(t => t.Category == TagCategory.Hobby)
+            .Select(t => t.Value)
+            .ToHashSet();
+
+        var sharedMusicCount = candidate.Tags.Count(t => t.Category == TagCategory.Music && myMusic.Contains(t.Value));
+        var sharedHobbyCount = candidate.Tags.Count(t => t.Category == TagCategory.Hobby && myHobbies.Contains(t.Value));
+        var musicScore = sharedMusicCount * 2;
+        var hobbyScore = sharedHobbyCount * 3;
+        var faithScore = !string.IsNullOrWhiteSpace(requester.Faith) && requester.Faith == candidate.Faith ? 4 : 0;
+        var politicScore = !string.IsNullOrWhiteSpace(requester.PoliticalLeaning) && requester.PoliticalLeaning == candidate.PoliticalLeaning ? 3 : 0;
+        var baselineScore = musicScore + hobbyScore + faithScore + politicScore;
+
+        var profileCompletenessScore =
+            (string.IsNullOrWhiteSpace(candidate.Faith) ? 0 : 1)
+            + (string.IsNullOrWhiteSpace(candidate.PoliticalLeaning) ? 0 : 1)
+            + (candidate.Tags.Count >= 5 ? 1 : 0)
+            + (!string.IsNullOrWhiteSpace(candidate.AnimalAvatarUrl) ? 1 : 0);
+
+        var profileAgeDays = (DateTime.UtcNow - candidate.CreatedAt).TotalDays;
+        var freshnessScore = profileAgeDays <= 7 ? 2 : profileAgeDays <= 30 ? 1 : 0;
+        var score = featureFlags.Matching.ScoreV2
+            ? baselineScore + profileCompletenessScore + freshnessScore
+            : baselineScore;
+
+        var reasons = new List<string>();
+        if (sharedHobbyCount > 0) reasons.Add($"{sharedHobbyCount} shared hobbies");
+        if (sharedMusicCount > 0) reasons.Add($"{sharedMusicCount} shared music genres");
+        if (faithScore > 0) reasons.Add("same faith");
+        if (politicScore > 0) reasons.Add("similar politics");
+        if (featureFlags.Matching.ScoreV2 && freshnessScore > 0) reasons.Add("active recently");
+        if (featureFlags.Matching.ScoreV2 && reasons.Count == 0) reasons.Add("profile fit");
+
+        return new CompatibilitySummary(score, reasons.Take(3).ToList());
     }
 
 }

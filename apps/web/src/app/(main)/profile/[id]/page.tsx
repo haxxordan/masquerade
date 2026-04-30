@@ -122,6 +122,57 @@ function ProfileWidget({
   }
 }
 
+function CompatibilityPanel({
+  profile,
+  accentColor,
+}: {
+  profile: Profile;
+  accentColor: string;
+}) {
+  const reasons = profile.compatibilityReasons?.slice(0, 3) ?? [];
+  const hasScore = typeof profile.compatibilityScore === 'number';
+
+  if (!hasScore && reasons.length === 0) return null;
+
+  return (
+    <section
+      className="mb-8 rounded border bg-white/5 p-4"
+      style={{ borderColor: `${accentColor}55` }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs uppercase tracking-widest opacity-50">compatibility</div>
+          <div className="text-sm font-bold" style={{ color: accentColor }}>
+            Why this profile fits
+          </div>
+        </div>
+        {hasScore && (
+          <div
+            className="rounded-full border px-3 py-1 text-sm font-bold"
+            style={{ borderColor: accentColor, color: accentColor }}
+          >
+            {profile.compatibilityScore}
+          </div>
+        )}
+      </div>
+
+      {reasons.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {reasons.map(reason => (
+            <span
+              key={reason}
+              className="rounded-full border px-3 py-1 text-xs"
+              style={{ borderColor: `${accentColor}88`, color: accentColor }}
+            >
+              {reason}
+            </span>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -368,6 +419,8 @@ export default function ProfilePage() {
           )}
 
         </div>
+
+        <CompatibilityPanel profile={profile} accentColor={accentColor} />
 
         {/* ── Widgets ── */}
         {sortedWidgets.map(widget => (

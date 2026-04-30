@@ -141,7 +141,14 @@ export default function BrowsePage() {
               </div>
               <div className="p-4 flex flex-col gap-2 flex-1">
                 <div>
-                  <div className="font-bold text-sm">{p.displayName}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-bold text-sm truncate">{p.displayName}</div>
+                    {typeof p.compatibilityScore === 'number' && (
+                      <span className="shrink-0 rounded-full border border-[#ff6699]/40 px-2 py-0.5 text-[10px] font-bold text-[#ff9cbc]">
+                        {p.compatibilityScore}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs opacity-40 capitalize">{p.animalType}</div>
                   {!!p.compatibilityReasons?.length && (
                     <div className="text-[11px] text-[#ff9cbc] mt-1">
