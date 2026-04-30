@@ -131,6 +131,7 @@ function CompatibilityPanel({
 }) {
   const reasons = profile.compatibilityReasons?.slice(0, 3) ?? [];
   const hasScore = typeof profile.compatibilityScore === 'number';
+  const fitLabel = hasScore ? getFitLabel(profile.compatibilityScore ?? 0) : null;
 
   if (!hasScore && reasons.length === 0) return null;
 
@@ -146,12 +147,12 @@ function CompatibilityPanel({
             Why this profile fits
           </div>
         </div>
-        {hasScore && (
+        {fitLabel && (
           <div
             className="rounded-full border px-3 py-1 text-sm font-bold"
             style={{ borderColor: accentColor, color: accentColor }}
           >
-            {profile.compatibilityScore}
+            {fitLabel}
           </div>
         )}
       </div>
@@ -171,6 +172,13 @@ function CompatibilityPanel({
       )}
     </section>
   );
+}
+
+function getFitLabel(score: number) {
+  if (score >= 8) return 'Strong fit';
+  if (score >= 4) return 'Good fit';
+  if (score > 0) return 'Some overlap';
+  return null;
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
