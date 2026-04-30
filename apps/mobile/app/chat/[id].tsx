@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { matchesApi } from '@dating/api-client';
+import { ApiError, matchesApi } from '@dating/api-client';
 import { useMatchStore, useAuthStore } from '@dating/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Message, ConversationState } from '@dating/types';
@@ -14,6 +14,10 @@ import { hubConnection } from '../../lib/hubConnection';
 
 function formatSeenTime(value: string) {
   return new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+}
+
+function isFeatureDisabled(error: unknown) {
+  return error instanceof ApiError && (error.status === 404 || error.status === 403);
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -98,16 +102,14 @@ export default function ChatScreen() {
       if (openersResult.status === 'fulfilled') {
         setOpeners(openersResult.value.suggestions);
       } else {
-        const status = (openersResult.reason as { response?: { status?: number } })?.response?.status;
-        if (status !== 404) console.warn('[chat] openers error', openersResult.reason);
+        if (!isFeatureDisabled(openersResult.reason)) console.warn('[chat] openers error', openersResult.reason);
         setOpeners([]);
       }
 
       if (stateResult.status === 'fulfilled') {
         setConvState(stateResult.value);
       } else {
-        const status = (stateResult.reason as { response?: { status?: number } })?.response?.status;
-        if (status !== 404) console.warn('[chat] conv state error', stateResult.reason);
+        if (!isFeatureDisabled(stateResult.reason)) console.warn('[chat] conv state error', stateResult.reason);
         setConvState(null);
       }
     } finally {
@@ -168,7 +170,9 @@ export default function ChatScreen() {
       // Refresh conv state post-send
       matchesApi.getConversationState(matchId)
         .then(s => setConvState(s))
-        .catch(() => { });
+        .catch((error: unknown) => {
+          if (!isFeatureDisabled(error)) console.warn('[chat] conv state refresh error', error);
+        });
     } catch (err) {
       console.warn('[chat] send error', err);
     } finally {

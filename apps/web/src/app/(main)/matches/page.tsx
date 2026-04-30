@@ -41,11 +41,13 @@ function MatchCard({
     match,
     active,
     unread,
+    stale,
     onClick,
 }: {
     match: Match;
     active: boolean;
     unread: boolean;
+    stale: boolean;
     onClick: () => void;
 }) {
     const other = match.otherProfile;
@@ -67,7 +69,7 @@ function MatchCard({
                     />
                 ) : '🐾'}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                     <div className={`text-sm truncate ${unread && !active ? 'font-bold text-white' : 'font-semibold'}`}>
                         {other?.displayName ?? 'Unknown'}
@@ -76,10 +78,21 @@ function MatchCard({
                         <span className="h-2 w-2 rounded-full bg-[#ff6699] shrink-0" />
                     )}
                 </div>
-                <div className="text-xs opacity-40 capitalize truncate">{other?.animalType ?? ''}</div>
+                <div className="flex items-center gap-2 text-xs opacity-40">
+                    <span className="capitalize truncate">{other?.animalType ?? ''}</span>
+                    {stale && !unread ? (
+                        <span className="shrink-0 rounded-full border border-[#ff6699]/40 px-1.5 py-0.5 text-[10px] uppercase text-[#ff9cbc] opacity-100">
+                            nudge
+                        </span>
+                    ) : null}
+                </div>
             </div>
         </button>
     );
+}
+
+function isFeatureDisabled(error: unknown) {
+    return error instanceof ApiError && (error.status === 404 || error.status === 403);
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
@@ -120,6 +133,45 @@ function MatchesContent() {
         matchesApi.getMatches().then(setMatches);
     }, []);
 
+    // Opportunistically load stale state for match-list indicators. If the
+    // feature is disabled the API returns 404/403, which should stay silent.
+    useEffect(() => {
+        const missingMatchIds = matches
+            .map(match => match.id)
+            .filter(matchId => !(matchId in stateByMatchId));
+
+        if (missingMatchIds.length === 0) return;
+
+        let cancelled = false;
+
+        Promise.all(missingMatchIds.map(async (matchId) => {
+            try {
+                const state = await matchesApi.getConversationState(matchId);
+                return [matchId, state] as const;
+            } catch (error: unknown) {
+                if (!isFeatureDisabled(error)) {
+                    console.error('Failed to load conversation state:', error);
+                }
+
+                return [matchId, null] as const;
+            }
+        })).then(results => {
+            if (cancelled) return;
+
+            setStateByMatchId(prev => {
+                const next = { ...prev };
+                for (const [matchId, state] of results) {
+                    next[matchId] = state;
+                }
+                return next;
+            });
+        });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [matches, stateByMatchId]);
+
     // Load messages when active match changes
     useEffect(() => {
         if (!activeMatchId || messages[activeMatchId]) return;
@@ -142,8 +194,7 @@ function MatchesContent() {
                 }));
             })
             .catch((error: unknown) => {
-                const status = error instanceof ApiError ? error.status : undefined;
-                if (status !== 404 && status !== 403) {
+                if (!isFeatureDisabled(error)) {
                     console.error('Failed to load smart openers:', error);
                 }
 
@@ -166,8 +217,7 @@ function MatchesContent() {
                 }));
             })
             .catch((error: unknown) => {
-                const status = error instanceof ApiError ? error.status : undefined;
-                if (status !== 404 && status !== 403) {
+                if (!isFeatureDisabled(error)) {
                     console.error('Failed to load conversation state:', error);
                 }
 
@@ -215,11 +265,14 @@ function MatchesContent() {
             const msg = await matchesApi.sendMessage(activeMatchId, input.trim());
             addMessage(activeMatchId, msg);
             setInput('');
+            setOpenersByMatchId(prev => ({
+                ...prev,
+                [activeMatchId]: [],
+            }));
 
             const updatedState = await matchesApi.getConversationState(activeMatchId)
                 .catch((error: unknown) => {
-                    const status = (error as { response?: { status?: number } })?.response?.status;
-                    if (status !== 404) {
+                    if (!isFeatureDisabled(error)) {
                         console.error('Failed to refresh conversation state:', error);
                     }
                     return null;
@@ -285,6 +338,7 @@ function MatchesContent() {
                                 match={m}
                                 active={m.id === activeMatchId}
                                 unread={unreadMatchIds.has(m.id)}
+                                stale={stateByMatchId[m.id]?.isStale ?? false}
                                 onClick={() => {
                                     setActiveMatch(m.id);
                                     markRead(m.id);

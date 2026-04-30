@@ -1,9 +1,9 @@
 import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
-import { useCallback, useEffect } from 'react';
-import { matchesApi } from '@dating/api-client';
+import { useCallback, useEffect, useState } from 'react';
+import { ApiError, matchesApi } from '@dating/api-client';
 import { useMatchStore } from '@dating/store';
 import { useFocusEffect, useRouter } from 'expo-router';
-import type { Match } from '@dating/types';
+import type { ConversationState, Match } from '@dating/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, staleTimes } from '../../lib/queryConfig';
@@ -12,6 +12,7 @@ export default function MatchesScreen() {
   const { matches, setMatches, unreadMatchIds, markRead, setActiveMatch } = useMatchStore();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [stateByMatchId, setStateByMatchId] = useState<Record<string, ConversationState | null>>({});
 
   const matchesQuery = useQuery({
     queryKey: queryKeys.matches,
@@ -31,6 +32,44 @@ export default function MatchesScreen() {
       refetch().catch(() => { });
     }
   }, [isStale, refetch]));
+
+  useEffect(() => {
+    const missingMatchIds = matches
+      .map(match => match.id)
+      .filter(matchId => !(matchId in stateByMatchId));
+
+    if (missingMatchIds.length === 0) return;
+
+    let cancelled = false;
+
+    Promise.all(missingMatchIds.map(async (matchId) => {
+      try {
+        const state = await matchesApi.getConversationState(matchId);
+        return [matchId, state] as const;
+      } catch (error: unknown) {
+        const disabled = error instanceof ApiError && (error.status === 404 || error.status === 403);
+        if (!disabled) {
+          console.warn('[matches] conversation state error', error);
+        }
+
+        return [matchId, null] as const;
+      }
+    })).then(results => {
+      if (cancelled) return;
+
+      setStateByMatchId(prev => {
+        const next = { ...prev };
+        for (const [matchId, state] of results) {
+          next[matchId] = state;
+        }
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [matches, stateByMatchId]);
 
   const openChat = (m: Match) => {
     setActiveMatch(m.id);
@@ -57,6 +96,7 @@ export default function MatchesScreen() {
         renderItem={({ item: m }) => {
           const other = m.otherProfile;
           const hasUnread = unreadMatchIds.has(m.id);
+          const isStaleConversation = stateByMatchId[m.id]?.isStale ?? false;
           return (
             <TouchableOpacity
               className="bg-white/5 rounded-xl p-4 border border-white/10 flex-row items-center gap-4"
@@ -82,9 +122,16 @@ export default function MatchesScreen() {
                 <Text className="text-white font-bold" numberOfLines={1}>
                   {other?.displayName ?? 'Match'}
                 </Text>
-                <Text className="text-white/40 text-sm capitalize" numberOfLines={1}>
-                  {other?.animalType ?? ''}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-white/40 text-sm capitalize" numberOfLines={1}>
+                    {other?.animalType ?? ''}
+                  </Text>
+                  {isStaleConversation && !hasUnread && (
+                    <Text className="text-[#ff9cbc] text-[10px] uppercase border border-[#ff6699]/40 rounded-full px-1.5 py-0.5">
+                      nudge
+                    </Text>
+                  )}
+                </View>
               </View>
 
               {/* Unread dot */}
