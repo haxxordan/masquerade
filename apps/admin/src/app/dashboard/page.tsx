@@ -2,7 +2,7 @@
 
 import { startTransition, useDeferredValue, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { AdminDashboardSummary, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminReport, AdminTrendPoint, AdminUserDetail, AdminUserListItem } from '@dating/types';
+import type { AdminDashboardSummary, AdminFeatureFlags, AdminFunnelMetrics, AdminLikeDetail, AdminMatchDetail, AdminReport, AdminTrendPoint, AdminUserDetail, AdminUserListItem } from '@dating/types';
 import { adminApi } from '@/lib/adminApi';
 import { clearAdminSession, getStoredAdminSession } from '@/lib/adminAuth';
 
@@ -27,6 +27,26 @@ function renderIdentity(user: { email: string; displayName: string | null; anima
 
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
+}
+
+function formatMinutes(value: number) {
+  if (value <= 0) {
+    return 'No replies yet';
+  }
+
+  if (value < 60) {
+    return `${value.toFixed(1)} min`;
+  }
+
+  return `${(value / 60).toFixed(1)} hr`;
+}
+
+function FlagBadge({ label, enabled }: { label: string; enabled: boolean }) {
+  return (
+    <span className={enabled ? 'badge' : 'subtle-badge'}>
+      {label}: {enabled ? 'On' : 'Off'}
+    </span>
+  );
 }
 
 function LikesSection({ title, items }: { title: string; items: AdminLikeDetail[] }) {
@@ -109,6 +129,7 @@ function TrendChart({ data }: { data: AdminTrendPoint[] }) {
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<AdminDashboardSummary | null>(null);
+  const [featureFlags, setFeatureFlags] = useState<AdminFeatureFlags | null>(null);
   const [funnelMetrics, setFunnelMetrics] = useState<AdminFunnelMetrics | null>(null);
   const [trendData, setTrendData] = useState<AdminTrendPoint[]>([]);
   const [trendGranularity, setTrendGranularity] = useState<'daily' | 'weekly'>('daily');
@@ -146,8 +167,9 @@ export default function DashboardPage() {
 
     async function load() {
       try {
-        const [summaryResponse, usersResponse, funnelResponse, reportsResponse] = await Promise.all([
+        const [summaryResponse, featureFlagsResponse, usersResponse, funnelResponse, reportsResponse] = await Promise.all([
           adminApi.getSummary(),
+          adminApi.getFeatureFlags(),
           adminApi.getUsers(),
           adminApi.getEngagementMetrics(),
           adminApi.getReports(),
@@ -158,6 +180,7 @@ export default function DashboardPage() {
         }
 
         setSummary(summaryResponse);
+        setFeatureFlags(featureFlagsResponse);
         setUsers(usersResponse);
         setFunnelMetrics(funnelResponse);
         setReports(reportsResponse);
@@ -279,6 +302,25 @@ export default function DashboardPage() {
         ))}
       </section>
 
+      <section className="glass-panel rollout-section">
+        <div>
+          <div className="eyebrow">Rollout</div>
+          <h2 style={{ margin: '4px 0 0' }}>Feature flags</h2>
+        </div>
+        <div className="badge-row">
+          {featureFlags ? (
+            <>
+              <FlagBadge label="Smart openers" enabled={featureFlags.messaging.smartOpenersV1} />
+              <FlagBadge label="Stall nudges" enabled={featureFlags.messaging.stallNudgesV1} />
+              <FlagBadge label="Top picks" enabled={featureFlags.matching.topPicksV1} />
+              <FlagBadge label="Score v2" enabled={featureFlags.matching.scoreV2} />
+            </>
+          ) : (
+            <span className="subtle-badge">Loading flags</span>
+          )}
+        </div>
+      </section>
+
       <section className="glass-panel funnel-section">
         <div className="eyebrow">Matching + messaging</div>
         <h2 style={{ margin: '4px 0 16px' }}>Conversation funnel</h2>
@@ -306,6 +348,11 @@ export default function DashboardPage() {
                 label: 'Nudges acted',
                 value: funnelMetrics.nudgesActedCount,
                 sub: `${formatPercent(funnelMetrics.nudgeActedRatePercent)} of nudges`,
+              },
+              {
+                label: 'Median nudge reply',
+                value: formatMinutes(funnelMetrics.medianNudgeReplyMinutes),
+                sub: 'time to reply',
               },
             ].map((step) => (
               <div key={step.label} className="funnel-step">

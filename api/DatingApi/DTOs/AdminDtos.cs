@@ -64,6 +64,7 @@ public sealed record FunnelMetricsDto(
     int StaleChatCount,
     int NudgesSentCount,
     int NudgesActedCount,
+    double MedianNudgeReplyMinutes,
     double FirstMessageRatePercent,
     double FirstReplyRatePercent,
     double StaleChatRatePercent,
@@ -76,10 +77,23 @@ public sealed record EngagementMetricsDto(
     int StaleChatCount,
     int NudgesSentCount,
     int NudgesActedCount,
+    double MedianNudgeReplyMinutes,
     double FirstMessageRatePercent,
     double FirstReplyRatePercent,
     double StaleChatRatePercent,
     double NudgeActedRatePercent);
+
+public sealed record AdminMessagingFeatureFlagsDto(
+    bool SmartOpenersV1,
+    bool StallNudgesV1);
+
+public sealed record AdminMatchingFeatureFlagsDto(
+    bool TopPicksV1,
+    bool ScoreV2);
+
+public sealed record AdminFeatureFlagsDto(
+    AdminMatchingFeatureFlagsDto Matching,
+    AdminMessagingFeatureFlagsDto Messaging);
 
 public sealed record DailyFunnelPointDto(
     string Date,

@@ -2,8 +2,10 @@
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
+using DatingApi.Features;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DatingApi.Tests;
 
@@ -44,6 +46,7 @@ public class AdminMetricsTests
         Assert.Equal(1, dto.StaleChatCount);
         Assert.Equal(2, dto.NudgesSentCount);
         Assert.Equal(1, dto.NudgesActedCount);
+        Assert.Equal(60, dto.MedianNudgeReplyMinutes);
         Assert.Equal(66.67, dto.FirstMessageRatePercent);
         Assert.Equal(50, dto.FirstReplyRatePercent);
         Assert.Equal(50, dto.StaleChatRatePercent);
@@ -215,6 +218,7 @@ public class AdminMetricsTests
         Assert.Equal(1, dto.StaleChatCount);
         Assert.Equal(0, dto.NudgesSentCount);
         Assert.Equal(0, dto.NudgesActedCount);
+        Assert.Equal(0, dto.MedianNudgeReplyMinutes);
 
         Assert.Equal(66.67, dto.FirstMessageRatePercent);
         Assert.Equal(50, dto.FirstReplyRatePercent);
@@ -238,10 +242,31 @@ public class AdminMetricsTests
         Assert.Equal(0, dto.StaleChatCount);
         Assert.Equal(0, dto.NudgesSentCount);
         Assert.Equal(0, dto.NudgesActedCount);
+        Assert.Equal(0, dto.MedianNudgeReplyMinutes);
         Assert.Equal(0, dto.FirstMessageRatePercent);
         Assert.Equal(0, dto.FirstReplyRatePercent);
         Assert.Equal(0, dto.StaleChatRatePercent);
         Assert.Equal(0, dto.NudgeActedRatePercent);
+    }
+
+    [Fact]
+    public void GetFeatureFlags_ReturnsConfiguredFlags()
+    {
+        using var db = CreateContext();
+        var controller = new AdminController(db, Options.Create(new FeatureFlagsOptions
+        {
+            Matching = new MatchingFeatureFlags { TopPicksV1 = true, ScoreV2 = false },
+            Messaging = new MessagingFeatureFlags { SmartOpenersV1 = true, StallNudgesV1 = true },
+        }));
+
+        var response = controller.GetFeatureFlags();
+        var ok = Assert.IsType<OkObjectResult>(response.Result);
+        var dto = Assert.IsType<AdminFeatureFlagsDto>(ok.Value);
+
+        Assert.True(dto.Matching.TopPicksV1);
+        Assert.False(dto.Matching.ScoreV2);
+        Assert.True(dto.Messaging.SmartOpenersV1);
+        Assert.True(dto.Messaging.StallNudgesV1);
     }
 
     private static AppDbContext CreateContext()

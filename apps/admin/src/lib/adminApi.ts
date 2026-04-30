@@ -3,6 +3,7 @@ import type {
   AdminAuthResponse,
   AdminDashboardSummary,
   AdminDailyFunnelPoint,
+  AdminFeatureFlags,
   AdminFunnelMetrics,
   AdminLoginRequest,
   AdminReport,
@@ -59,6 +60,8 @@ export const adminApi = {
     }),
 
   getSummary: () => request<AdminDashboardSummary>('/api/admin/summary'),
+
+  getFeatureFlags: () => request<AdminFeatureFlags>('/api/admin/feature-flags'),
 
   getUsers: () => request<AdminUserListItem[]>('/api/admin/users'),
 

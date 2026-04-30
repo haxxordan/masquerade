@@ -238,9 +238,47 @@ function MatchesContent() {
     const activeOpeners = activeMatchId ? (openersByMatchId[activeMatchId] ?? []) : [];
     const activeState = activeMatchId ? (stateByMatchId[activeMatchId] ?? null) : null;
     const isOtherTyping = activeMatchId ? (typingByMatchId[activeMatchId] ?? false) : false;
+    const activeMessageCount = activeMessages.length;
     const lastMyMessageWithReceipt = [...activeMessages]
         .reverse()
         .find((message) => message.senderId === userId && message.readAt);
+
+    const refreshConversationState = async (matchId: string) => {
+        try {
+            const state = await matchesApi.getConversationState(matchId);
+            setStateByMatchId(prev => ({
+                ...prev,
+                [matchId]: state,
+            }));
+        } catch (error: unknown) {
+            if (!isFeatureDisabled(error)) {
+                console.error('Failed to refresh conversation state:', error);
+            }
+
+            setStateByMatchId(prev => ({
+                ...prev,
+                [matchId]: null,
+            }));
+        }
+    };
+
+    useEffect(() => {
+        if (!activeMatchId) return;
+        refreshConversationState(activeMatchId);
+    }, [activeMatchId, activeMessageCount]);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') return;
+
+            for (const match of matches) {
+                refreshConversationState(match.id);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [matches]);
 
     const handleInputChange = (value: string) => {
         setInput(value);
@@ -270,18 +308,7 @@ function MatchesContent() {
                 [activeMatchId]: [],
             }));
 
-            const updatedState = await matchesApi.getConversationState(activeMatchId)
-                .catch((error: unknown) => {
-                    if (!isFeatureDisabled(error)) {
-                        console.error('Failed to refresh conversation state:', error);
-                    }
-                    return null;
-                });
-
-            setStateByMatchId(prev => ({
-                ...prev,
-                [activeMatchId]: updatedState,
-            }));
+            await refreshConversationState(activeMatchId);
         } finally {
             setSending(false);
         }

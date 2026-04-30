@@ -2,19 +2,31 @@ using DatingApi.Auth;
 using DatingApi.Data;
 using DatingApi.Domain;
 using DatingApi.DTOs;
+using DatingApi.Features;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace DatingApi.Controllers;
 
 [Authorize(AuthenticationSchemes = AdminAuthConstants.Scheme, Policy = AdminAuthConstants.Policy)]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(AppDbContext db) : ControllerBase
+public class AdminController(AppDbContext db, IOptions<FeatureFlagsOptions>? featureFlagsOptions = null) : ControllerBase
 {
     private sealed record NudgeEvent(string MatchId, string SenderId, DateTime SentAt);
     private sealed record ReplyEvent(string MatchId, string SenderId, DateTime SentAt);
+    private sealed record EngagementSnapshot(
+        int MatchedCount,
+        int FirstMessagedCount,
+        int FirstRepliedCount,
+        int StaleChatCount,
+        int NudgesSentCount,
+        int NudgesActedCount,
+        double MedianNudgeReplyMinutes);
+
+    private readonly FeatureFlagsOptions featureFlags = featureFlagsOptions?.Value ?? new FeatureFlagsOptions();
 
     [HttpGet("summary")]
     public async Task<ActionResult<AdminDashboardSummaryDto>> GetSummary()
@@ -27,6 +39,14 @@ public class AdminController(AppDbContext db) : ControllerBase
             await db.Messages.AsNoTracking().CountAsync());
 
         return Ok(summary);
+    }
+
+    [HttpGet("feature-flags")]
+    public ActionResult<AdminFeatureFlagsDto> GetFeatureFlags()
+    {
+        return Ok(new AdminFeatureFlagsDto(
+            new AdminMatchingFeatureFlagsDto(featureFlags.Matching.TopPicksV1, featureFlags.Matching.ScoreV2),
+            new AdminMessagingFeatureFlagsDto(featureFlags.Messaging.SmartOpenersV1, featureFlags.Messaging.StallNudgesV1)));
     }
 
     [HttpGet("users")]
@@ -178,58 +198,39 @@ public class AdminController(AppDbContext db) : ControllerBase
     [HttpGet("metrics/funnel")]
     public async Task<ActionResult<FunnelMetricsDto>> GetFunnelMetrics()
     {
-        var matchedCount = await db.Matches.AsNoTracking().CountAsync();
-        var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
-        var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
-        var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
-        var nudgesSent = await db.Messages.AsNoTracking()
-            .Where(x => x.Kind == MessageKind.Nudge)
-            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
-            .ToListAsync();
-
-        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
-        var nudgesActedCount = CountActedNudges(nudgesSent, nonNudgeRepliesByMatch, sinceInclusive: null, untilExclusive: null);
+        var metrics = await BuildEngagementSnapshotAsync();
 
         return Ok(new FunnelMetricsDto(
-            matchedCount,
-            firstMessagedCount,
-            firstRepliedCount,
-            staleChatCount,
-            nudgesSent.Count,
-            nudgesActedCount,
-            ToPercent(firstMessagedCount, matchedCount),
-            ToPercent(firstRepliedCount, firstMessagedCount),
-            ToPercent(staleChatCount, firstMessagedCount),
-            ToPercent(nudgesActedCount, nudgesSent.Count)));
+            metrics.MatchedCount,
+            metrics.FirstMessagedCount,
+            metrics.FirstRepliedCount,
+            metrics.StaleChatCount,
+            metrics.NudgesSentCount,
+            metrics.NudgesActedCount,
+            metrics.MedianNudgeReplyMinutes,
+            ToPercent(metrics.FirstMessagedCount, metrics.MatchedCount),
+            ToPercent(metrics.FirstRepliedCount, metrics.FirstMessagedCount),
+            ToPercent(metrics.StaleChatCount, metrics.FirstMessagedCount),
+            ToPercent(metrics.NudgesActedCount, metrics.NudgesSentCount)));
     }
 
     [HttpGet("metrics/engagement")]
     public async Task<ActionResult<EngagementMetricsDto>> GetEngagementMetrics()
     {
-        var matchedCount = await db.Matches.AsNoTracking().CountAsync();
-        var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
-        var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
-        var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
-
-        var nudgesSent = await db.Messages.AsNoTracking()
-            .Where(x => x.Kind == MessageKind.Nudge)
-            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
-            .ToListAsync();
-
-        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
-        var nudgesActedCount = CountActedNudges(nudgesSent, nonNudgeRepliesByMatch, sinceInclusive: null, untilExclusive: null);
+        var metrics = await BuildEngagementSnapshotAsync();
 
         return Ok(new EngagementMetricsDto(
-            matchedCount,
-            firstMessagedCount,
-            firstRepliedCount,
-            staleChatCount,
-            nudgesSent.Count,
-            nudgesActedCount,
-            ToPercent(firstMessagedCount, matchedCount),
-            ToPercent(firstRepliedCount, firstMessagedCount),
-            ToPercent(staleChatCount, firstMessagedCount),
-            ToPercent(nudgesActedCount, nudgesSent.Count)));
+            metrics.MatchedCount,
+            metrics.FirstMessagedCount,
+            metrics.FirstRepliedCount,
+            metrics.StaleChatCount,
+            metrics.NudgesSentCount,
+            metrics.NudgesActedCount,
+            metrics.MedianNudgeReplyMinutes,
+            ToPercent(metrics.FirstMessagedCount, metrics.MatchedCount),
+            ToPercent(metrics.FirstRepliedCount, metrics.FirstMessagedCount),
+            ToPercent(metrics.StaleChatCount, metrics.FirstMessagedCount),
+            ToPercent(metrics.NudgesActedCount, metrics.NudgesSentCount)));
     }
 
     [HttpGet("metrics/daily")]
@@ -411,6 +412,31 @@ public class AdminController(AppDbContext db) : ControllerBase
         return Math.Round((double)numerator / denominator * 100, 2);
     }
 
+    private async Task<EngagementSnapshot> BuildEngagementSnapshotAsync()
+    {
+        var matchedCount = await db.Matches.AsNoTracking().CountAsync();
+        var firstMessagedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstMessageAt != null);
+        var firstRepliedCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.FirstReplyAt != null);
+        var staleChatCount = await db.ConversationStates.AsNoTracking().CountAsync(x => x.IsStale);
+
+        var nudgesSent = await db.Messages.AsNoTracking()
+            .Where(x => x.Kind == MessageKind.Nudge)
+            .Select(x => new NudgeEvent(x.MatchId, x.SenderId, x.SentAt))
+            .ToListAsync();
+
+        var nonNudgeRepliesByMatch = await GetNonNudgeRepliesByMatchAsync();
+        var replyDurations = GetActedNudgeReplyDurations(nudgesSent, nonNudgeRepliesByMatch, sinceInclusive: null, untilExclusive: null);
+
+        return new EngagementSnapshot(
+            matchedCount,
+            firstMessagedCount,
+            firstRepliedCount,
+            staleChatCount,
+            nudgesSent.Count,
+            replyDurations.Count,
+            MedianMinutes(replyDurations));
+    }
+
     private static Dictionary<DateTime, int> GroupByPeriod(IEnumerable<DateTime> timestamps, DateTime since, int periodSizeDays)
     {
         return timestamps
@@ -454,6 +480,54 @@ public class AdminController(AppDbContext db) : ControllerBase
         }
 
         return count;
+    }
+
+    private static List<TimeSpan> GetActedNudgeReplyDurations(
+        IReadOnlyList<NudgeEvent> nudges,
+        IReadOnlyDictionary<string, List<ReplyEvent>> repliesByMatch,
+        DateTime? sinceInclusive,
+        DateTime? untilExclusive)
+    {
+        var durations = new List<TimeSpan>();
+
+        foreach (var nudge in nudges)
+        {
+            if (sinceInclusive.HasValue && nudge.SentAt < sinceInclusive.Value)
+                continue;
+
+            if (untilExclusive.HasValue && nudge.SentAt >= untilExclusive.Value)
+                continue;
+
+            if (!repliesByMatch.TryGetValue(nudge.MatchId, out var replies))
+                continue;
+
+            var reply = replies.FirstOrDefault(reply =>
+                reply.SentAt > nudge.SentAt &&
+                !string.Equals(reply.SenderId, nudge.SenderId, StringComparison.Ordinal));
+
+            if (reply != null)
+                durations.Add(reply.SentAt - nudge.SentAt);
+        }
+
+        return durations;
+    }
+
+    private static double MedianMinutes(IReadOnlyList<TimeSpan> durations)
+    {
+        if (durations.Count == 0)
+            return 0;
+
+        var sorted = durations
+            .Select(duration => duration.TotalMinutes)
+            .Order()
+            .ToList();
+
+        var middle = sorted.Count / 2;
+        var median = sorted.Count % 2 == 1
+            ? sorted[middle]
+            : (sorted[middle - 1] + sorted[middle]) / 2;
+
+        return Math.Round(median, 2);
     }
 
     private async Task<IReadOnlyDictionary<string, List<ReplyEvent>>> GetNonNudgeRepliesByMatchAsync()

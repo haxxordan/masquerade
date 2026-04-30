@@ -122,6 +122,16 @@ export default function ChatScreen() {
   }, [refreshConversation]));
 
   useEffect(() => {
+    if (!matchId) return;
+
+    matchesApi.getConversationState(matchId)
+      .then(s => setConvState(s))
+      .catch((error: unknown) => {
+        if (!isFeatureDisabled(error)) console.warn('[chat] conv state refresh error', error);
+      });
+  }, [currentMessages.length, matchId]);
+
+  useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 

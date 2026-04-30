@@ -65,10 +65,22 @@ export interface AdminFunnelMetrics {
   staleChatCount: number;
   nudgesSentCount: number;
   nudgesActedCount: number;
+  medianNudgeReplyMinutes: number;
   firstMessageRatePercent: number;
   firstReplyRatePercent: number;
   staleChatRatePercent: number;
   nudgeActedRatePercent: number;
+}
+
+export interface AdminFeatureFlags {
+  matching: {
+    topPicksV1: boolean;
+    scoreV2: boolean;
+  };
+  messaging: {
+    smartOpenersV1: boolean;
+    stallNudgesV1: boolean;
+  };
 }
 
 export interface AdminDailyFunnelPoint {

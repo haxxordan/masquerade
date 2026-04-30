@@ -10,6 +10,7 @@ const { mockReplace } = vi.hoisted(() => ({
 const { adminApiMock } = vi.hoisted(() => ({
   adminApiMock: {
     getSummary: vi.fn(),
+    getFeatureFlags: vi.fn(),
     getUsers: vi.fn(),
     getEngagementMetrics: vi.fn(),
     getEngagementTrends: vi.fn(),
@@ -71,6 +72,7 @@ const engagementFixture = {
   staleChatCount: 2,
   nudgesSentCount: 3,
   nudgesActedCount: 2,
+  medianNudgeReplyMinutes: 18,
   firstMessageRatePercent: 75,
   firstReplyRatePercent: 66.67,
   staleChatRatePercent: 22.22,
@@ -116,6 +118,10 @@ describe('DashboardPage smoke tests', () => {
     vi.clearAllMocks();
 
     adminApiMock.getSummary.mockResolvedValue(summaryFixture);
+    adminApiMock.getFeatureFlags.mockResolvedValue({
+      matching: { topPicksV1: false, scoreV2: false },
+      messaging: { smartOpenersV1: true, stallNudgesV1: true },
+    });
     adminApiMock.getUsers.mockResolvedValue(usersFixture);
     adminApiMock.getEngagementMetrics.mockResolvedValue(engagementFixture);
     adminApiMock.getEngagementTrends.mockResolvedValue(trendsFixture);
@@ -130,6 +136,8 @@ describe('DashboardPage smoke tests', () => {
     expect(await screen.findByText('Conversation funnel')).toBeInTheDocument();
     expect(screen.getAllByText('Nudges acted').length).toBeGreaterThan(0);
     expect(screen.getByText('66.7% of nudges')).toBeInTheDocument();
+    expect(screen.getByText('Smart openers: On')).toBeInTheDocument();
+    expect(screen.getByText('18.0 min')).toBeInTheDocument();
   });
 
   it('requests trends again when window and granularity are changed', async () => {

@@ -25,6 +25,12 @@ public class BetterFirstChatsTests
         Assert.Equal(3, suggestions.Count);
         Assert.Contains(suggestions, suggestion => suggestion.Contains("climbing", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(suggestions, suggestion => suggestion.Contains("jazz", StringComparison.OrdinalIgnoreCase));
+        Assert.All(suggestions, suggestion =>
+        {
+            Assert.False(string.IsNullOrWhiteSpace(suggestion));
+            Assert.True(suggestion.Length <= 120);
+        });
+        Assert.Equal(suggestions.Count, suggestions.Distinct(StringComparer.OrdinalIgnoreCase).Count());
     }
 
     [Fact]

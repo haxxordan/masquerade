@@ -21,28 +21,10 @@ export default function MatchesScreen() {
   });
   const { isStale, refetch } = matchesQuery;
 
-  useEffect(() => {
-    if (matchesQuery.data) {
-      setMatches(matchesQuery.data);
-    }
-  }, [matchesQuery.data, setMatches]);
+  const loadConversationStates = useCallback(async (matchIds: string[]) => {
+    if (matchIds.length === 0) return;
 
-  useFocusEffect(useCallback(() => {
-    if (isStale) {
-      refetch().catch(() => { });
-    }
-  }, [isStale, refetch]));
-
-  useEffect(() => {
-    const missingMatchIds = matches
-      .map(match => match.id)
-      .filter(matchId => !(matchId in stateByMatchId));
-
-    if (missingMatchIds.length === 0) return;
-
-    let cancelled = false;
-
-    Promise.all(missingMatchIds.map(async (matchId) => {
+    const results = await Promise.all(matchIds.map(async (matchId) => {
       try {
         const state = await matchesApi.getConversationState(matchId);
         return [matchId, state] as const;
@@ -54,22 +36,39 @@ export default function MatchesScreen() {
 
         return [matchId, null] as const;
       }
-    })).then(results => {
-      if (cancelled) return;
+    }));
 
-      setStateByMatchId(prev => {
-        const next = { ...prev };
-        for (const [matchId, state] of results) {
-          next[matchId] = state;
-        }
-        return next;
-      });
+    setStateByMatchId(prev => {
+      const next = { ...prev };
+      for (const [matchId, state] of results) {
+        next[matchId] = state;
+      }
+      return next;
     });
+  }, []);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [matches, stateByMatchId]);
+  useEffect(() => {
+    if (matchesQuery.data) {
+      setMatches(matchesQuery.data);
+    }
+  }, [matchesQuery.data, setMatches]);
+
+  useFocusEffect(useCallback(() => {
+    if (isStale) {
+      refetch().catch(() => { });
+    }
+    loadConversationStates(matches.map(match => match.id)).catch(() => { });
+  }, [isStale, loadConversationStates, matches, refetch]));
+
+  useEffect(() => {
+    const missingMatchIds = matches
+      .map(match => match.id)
+      .filter(matchId => !(matchId in stateByMatchId));
+
+    if (missingMatchIds.length === 0) return;
+
+    loadConversationStates(missingMatchIds).catch(() => { });
+  }, [loadConversationStates, matches, stateByMatchId]);
 
   const openChat = (m: Match) => {
     setActiveMatch(m.id);
