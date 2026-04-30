@@ -21,3 +21,4 @@ api/DatingApi/appsettings.Development.json
 **/.expo-shared/
 **/.expo-export-test/
 **/web-build/
+.codex
