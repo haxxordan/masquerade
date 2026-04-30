@@ -19,6 +19,8 @@ import type { Profile, ProfileLayout, ProfileWidget, Gender, LookingFor } from '
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const THEMES = ['riot', 'jupiter', 'ocean', 'sparrow'] as const;
+const FAITH_OPTIONS = ['Christian', 'Catholic', 'Jewish', 'Muslim', 'Hindu', 'Buddhist', 'Agnostic', 'Atheist', 'Spiritual'] as const;
+const POLITICS_OPTIONS = ['Liberal', 'Progressive', 'Moderate', 'Conservative', 'Libertarian'] as const;
 
 const themeClasses: Record<string, string> = {
     riot: 'bg-black text-white',
@@ -339,6 +341,40 @@ function TagPicker({
     );
 }
 
+function SingleValuePicker({
+    options,
+    selected,
+    accentColor,
+    onChange,
+}: {
+    options: readonly string[];
+    selected: string | null;
+    accentColor: string;
+    onChange: (updated: string | null) => void;
+}) {
+    return (
+        <div className="flex flex-wrap gap-2 pt-1">
+            {options.map(opt => {
+                const active = selected === opt;
+                return (
+                    <button
+                        key={opt}
+                        onClick={() => onChange(active ? null : opt)}
+                        className="px-3 py-1 rounded-full text-xs border transition"
+                        style={
+                            active
+                                ? { backgroundColor: accentColor, borderColor: accentColor, color: '#000' }
+                                : { borderColor: accentColor, color: accentColor, opacity: 0.5 }
+                        }
+                    >
+                        {opt}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MyProfilePage() {
@@ -597,6 +633,26 @@ export default function MyProfilePage() {
                                     </button>
                                 ))}
                             </div>
+                        </div>
+
+                        <div>
+                            <p className="text-sm opacity-60 mb-2">Faith (optional)</p>
+                            <SingleValuePicker
+                                options={FAITH_OPTIONS}
+                                selected={profile.faith}
+                                accentColor={layout.accentColor}
+                                onChange={faith => handleProfileChange({ faith })}
+                            />
+                        </div>
+
+                        <div>
+                            <p className="text-sm opacity-60 mb-2">Politics (optional)</p>
+                            <SingleValuePicker
+                                options={POLITICS_OPTIONS}
+                                selected={profile.politicalLeaning}
+                                accentColor={layout.accentColor}
+                                onChange={politicalLeaning => handleProfileChange({ politicalLeaning })}
+                            />
                         </div>
                     </div>
                 )}
