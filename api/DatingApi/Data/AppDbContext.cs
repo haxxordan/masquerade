@@ -14,6 +14,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
     public DbSet<ConversationState> ConversationStates => Set<ConversationState>();
     public DbSet<Block> Blocks => Set<Block>();
     public DbSet<Report> Reports => Set<Report>();
+    public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
+    public DbSet<AuthenticationThrottle> AuthenticationThrottles => Set<AuthenticationThrottle>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -36,6 +38,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             .Property(m => m.CompatibilityReasonsJson)
             .HasColumnType("jsonb");
 
+        builder.Entity<Match>()
+            .ToTable(table => table.HasCheckConstraint("CK_Matches_DistinctUsers", "\"User1Id\" <> \"User2Id\""));
+
+        builder.Entity<Match>()
+            .HasIndex(m => new { m.User1Id, m.User2Id })
+            .IsUnique();
+
         builder.Entity<Message>()
             .Property(m => m.MetadataJson)
             .HasColumnType("jsonb");
@@ -48,5 +57,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : IdentityDbCo
             .WithOne()
             .HasForeignKey<ConversationState>(c => c.MatchId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<AuthSession>().HasIndex(s => s.RefreshTokenHash).IsUnique();
+        builder.Entity<AuthSession>().HasIndex(s => s.TokenId).IsUnique();
     }
 }

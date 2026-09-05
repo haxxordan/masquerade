@@ -78,8 +78,8 @@ export function useSignalR() {
             setTyping(matchId, false);
         });
 
-        connection.on('MessagesRead', (data: { matchId: string; readerUserId: string; readAt: string }) => {
-            applyReadReceipt(data.matchId, data.readerUserId, data.readAt);
+        connection.on('MessagesRead', (data: { matchId: string; readAt: string }) => {
+            applyReadReceipt(data.matchId, data.readAt);
         });
 
         connection.onreconnecting(() => {

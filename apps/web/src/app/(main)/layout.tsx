@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import { Lobster } from 'next/font/google';
-import { matchesApi } from '@dating/api-client';
+import { authApi, matchesApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
 import { useSignalR } from '@/hooks/useSignalR';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { useMatchStore } from '@dating/store';
 
 function SignalRProvider() {
@@ -16,12 +16,12 @@ function SignalRProvider() {
 }
 
 function MatchBootstrapper() {
-    const token = useAuthStore((state) => state.token);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const setMatches = useMatchStore((state) => state.setMatches);
     const resetMatches = useMatchStore((state) => state.reset);
 
     useEffect(() => {
-        if (!token) {
+        if (!isAuthenticated) {
             resetMatches();
             return;
         }
@@ -43,7 +43,7 @@ function MatchBootstrapper() {
         return () => {
             cancelled = true;
         };
-    }, [token, resetMatches, setMatches]);
+    }, [isAuthenticated, resetMatches, setMatches]);
 
     return null;
 }
@@ -68,10 +68,15 @@ function NavDropdown() {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const handleLogout = () => {
-        resetMatches();
-        logout();
-        router.push('/login');
+    const handleLogout = async () => {
+        try {
+            await authApi.logout();
+            resetMatches();
+            logout();
+            router.push('/login');
+        } catch {
+            toast.error('Log out failed. Please try again.');
+        }
     };
 
     const { unreadMatchIds } = useMatchStore();

@@ -21,6 +21,7 @@ public class MatchesController(
     IHubContext<MatchHub> hub,
     SmartOpenersService smartOpeners,
     ConversationNudgeService nudgeService,
+    RelationshipVisibilityService visibility,
     IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
     private static readonly TimeSpan NewMatchWindow = TimeSpan.FromDays(7);
@@ -44,6 +45,12 @@ public class MatchesController(
 
         var likeeUserId = likeeProfile.UserId; // now it's the same type as LikerId
 
+        if (likeeUserId == UserId)
+            return BadRequest("You cannot like yourself.");
+
+        if (!await visibility.CanInteractAsync(UserId, likeeUserId))
+            return NotFound("Profile not found.");
+
         var existing = await db.Likes
             .FirstOrDefaultAsync(l => l.LikerId == UserId && l.LikeeId == likeeUserId);
         if (existing != null)
@@ -61,7 +68,10 @@ public class MatchesController(
         {
             if (mutual)
             {
-                match = new Match { User1Id = UserId, User2Id = likeeUserId, Status = MatchStatus.Matched };
+                var (user1Id, user2Id) = string.CompareOrdinal(UserId, likeeUserId) < 0
+                    ? (UserId, likeeUserId)
+                    : (likeeUserId, UserId);
+                match = new Match { User1Id = user1Id, User2Id = user2Id, Status = MatchStatus.Matched };
                 db.Matches.Add(match);
                 await db.SaveChangesAsync();
 
@@ -71,13 +81,13 @@ public class MatchesController(
                     .FirstOrDefaultAsync(p => p.UserId == UserId);
 
                 var matchDtoForLikee = new MatchDto(
-                    match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
+                    match.Id, match.Status.ToString(), match.CreatedAt,
                     currentUserProfile != null ? MatchingService.MapToDto(currentUserProfile) : null,
                     ConversationStatus: ConversationStatus.NewMatch,
                     ConversationStatusLabel: "new match"
                 );
                 var matchDtoForLiker = new MatchDto(
-                    match.Id, match.User1Id, match.User2Id, match.Status.ToString(), match.CreatedAt,
+                    match.Id, match.Status.ToString(), match.CreatedAt,
                     MatchingService.MapToDto(likeeProfile),
                     ConversationStatus: ConversationStatus.NewMatch,
                     ConversationStatusLabel: "new match"
@@ -107,6 +117,9 @@ public class MatchesController(
 
         var likeeUserId = profile.UserId;
 
+        if (!await visibility.CanInteractAsync(UserId, likeeUserId))
+            return NotFound();
+
         var like = await db.Likes.FirstOrDefaultAsync(l => l.LikerId == UserId && l.LikeeId == likeeUserId);
         if (like != null) db.Likes.Remove(like);
 
@@ -133,6 +146,10 @@ public class MatchesController(
         var matches = await db.Matches
             .Where(m => m.Status == MatchStatus.Matched && (m.User1Id == UserId || m.User2Id == UserId))
             .ToListAsync();
+
+        matches = matches.Where(m => !db.Blocks.Any(b =>
+            (b.BlockerId == m.User1Id && b.BlockedId == m.User2Id) ||
+            (b.BlockerId == m.User2Id && b.BlockedId == m.User1Id))).ToList();
 
         var matchIds = matches.Select(m => m.Id).ToHashSet();
 
@@ -178,8 +195,6 @@ public class MatchesController(
 
             return new MatchDto(
                 m.Id,
-                m.User1Id,
-                m.User2Id,
                 m.Status.ToString(),
                 m.CreatedAt,
                 otherProfile != null ? MatchingService.MapToDto(otherProfile) : null,
@@ -285,13 +300,13 @@ public class MatchesController(
     public async Task<ActionResult<List<MessageDto>>> GetMessages(string matchId)
     {
         var match = await db.Matches.FindAsync(matchId);
-        if (match == null || (match.User1Id != UserId && match.User2Id != UserId))
-            return Forbid();
+        if (match == null || !await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
         return await db.Messages
             .Where(m => m.MatchId == matchId)
             .OrderBy(m => m.SentAt)
-            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId, m.Content, m.SentAt, m.Kind, m.MetadataJson, m.ReadAt))
+            .Select(m => new MessageDto(m.Id, m.MatchId, m.SenderId == UserId, m.Content, m.SentAt, m.Kind, m.MetadataJson, m.ReadAt))
             .ToListAsync();
     }
 
@@ -299,8 +314,8 @@ public class MatchesController(
     public async Task<ActionResult<object>> MarkRead(string matchId)
     {
         var match = await db.Matches.FindAsync(matchId);
-        if (match == null || (match.User1Id != UserId && match.User2Id != UserId))
-            return Forbid();
+        if (match == null || !await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
         var now = DateTime.UtcNow;
         var unreadIncoming = await db.Messages
@@ -315,7 +330,7 @@ public class MatchesController(
             await db.SaveChangesAsync();
 
             var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
-            await hub.Clients.User(recipientId).SendAsync("MessagesRead", new { matchId, readAt = now, readerUserId = UserId });
+            await hub.Clients.User(recipientId).SendAsync("MessagesRead", new { matchId, readAt = now });
         }
 
         return Ok(new { readAt = now });
@@ -331,8 +346,8 @@ public class MatchesController(
         if (match == null)
             return NotFound();
 
-        if (match.User1Id != UserId && match.User2Id != UserId)
-            return Forbid();
+        if (!await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
         var state = await nudgeService.GetStateAsync(match, UserId);
         return Ok(state);
@@ -348,8 +363,8 @@ public class MatchesController(
         if (match == null)
             return NotFound();
 
-        if (match.User1Id != UserId && match.User2Id != UserId)
-            return Forbid();
+        if (!await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
         var suggestions = await smartOpeners.GenerateForMatchAsync(UserId, match);
         return Ok(new OpenerSuggestionsDto(suggestions));
@@ -365,15 +380,15 @@ public class MatchesController(
         if (match == null)
             return NotFound();
 
-        if (match.User1Id != UserId && match.User2Id != UserId)
-            return Forbid();
+        if (!await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
         var response = await nudgeService.SendNudgeAsync(match, UserId);
         if (response == null)
             return BadRequest("This conversation is not eligible for a nudge yet.");
 
         var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
-        await hub.Clients.User(recipientId).SendAsync("NewMessage", response.Message);
+        await hub.Clients.User(recipientId).SendAsync("NewMessage", response.Message with { IsMine = false });
 
         return Ok(response);
     }
@@ -382,10 +397,13 @@ public class MatchesController(
     public async Task<ActionResult<MessageDto>> SendMessage(string matchId, SendMessageRequest request)
     {
         var match = await db.Matches.FindAsync(matchId);
-        if (match == null || (match.User1Id != UserId && match.User2Id != UserId))
-            return Forbid();
+        if (match == null || !await visibility.CanAccessMatchAsync(UserId, match))
+            return NotFound();
 
-        var message = new Message { MatchId = matchId, SenderId = UserId, Content = request.Content };
+        if (!MessageValidation.TryNormalize(request.Content, out var content))
+            return BadRequest($"Message content must contain 1 to {MessageValidation.MaxLength} non-whitespace characters.");
+
+        var message = new Message { MatchId = matchId, SenderId = UserId, Content = content };
         db.Messages.Add(message);
         await db.SaveChangesAsync();
 
@@ -395,14 +413,14 @@ public class MatchesController(
         var dto = new MessageDto(
             message.Id,
             message.MatchId,
-            message.SenderId,
+            IsMine: true,
             message.Content,
             message.SentAt,
             message.Kind,
             message.MetadataJson,
             message.ReadAt);
         var recipientId = match.User1Id == UserId ? match.User2Id : match.User1Id;
-        await hub.Clients.User(recipientId).SendAsync("NewMessage", dto);
+        await hub.Clients.User(recipientId).SendAsync("NewMessage", dto with { IsMine = false });
 
         return dto;
     }

@@ -14,7 +14,12 @@ export default function LoginPage() {
   useEffect(() => {
     if (getStoredAdminSession()) {
       router.replace('/dashboard');
+      return;
     }
+    adminApi.session().then((session) => {
+      storeAdminSession(session);
+      router.replace('/dashboard');
+    }).catch(() => { });
   }, [router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

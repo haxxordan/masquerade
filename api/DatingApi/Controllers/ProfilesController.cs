@@ -17,6 +17,7 @@ namespace DatingApi.Controllers;
 public class ProfilesController(
     AppDbContext db,
     MatchingService matching,
+    RelationshipVisibilityService visibility,
     IOptions<FeatureFlagsOptions> featureFlagsOptions) : ControllerBase
 {
     private sealed record CompatibilitySummary(int? Score, List<string>? Reasons);
@@ -25,16 +26,14 @@ public class ProfilesController(
     private string UserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<ProfileDto>> Get(string id)
     {
         var profile = await db.Profiles.Include(p => p.Tags).FirstOrDefaultAsync(p => p.Id == id);
         if (profile == null) return NotFound();
 
-        // Only resolve like status if the request is authenticated
-        var requestingUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (requestingUserId == null)
-            return MatchingService.MapToDto(profile);
+        var requestingUserId = UserId;
+        if (!await visibility.CanViewProfileAsync(requestingUserId, profile))
+            return NotFound();
 
         var likedUserIds = await db.Likes
             .Where(l => l.LikerId == requestingUserId)
@@ -143,23 +142,28 @@ public class ProfilesController(
         return MatchingService.MapToDto(profile);
     }
 
-    [HttpPost("{userId}/block")]
-    public async Task<IActionResult> Block(string userId)
+    [HttpPost("{profileId}/block")]
+    public async Task<IActionResult> Block(string profileId)
     {
-        if (userId == UserId) return BadRequest("You cannot block yourself.");
+        var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == profileId);
+        if (profile == null) return NotFound();
+        if (profile.UserId == UserId) return BadRequest("You cannot block yourself.");
 
-        var exists = await db.Blocks.AnyAsync(b => b.BlockerId == UserId && b.BlockedId == userId);
+        var exists = await db.Blocks.AnyAsync(b => b.BlockerId == UserId && b.BlockedId == profile.UserId);
         if (exists) return Ok(); // idempotent
 
-        db.Blocks.Add(new Block { BlockerId = UserId, BlockedId = userId });
+        db.Blocks.Add(new Block { BlockerId = UserId, BlockedId = profile.UserId });
         await db.SaveChangesAsync();
         return Ok();
     }
 
-    [HttpDelete("{userId}/block")]
-    public async Task<IActionResult> Unblock(string userId)
+    [HttpDelete("{profileId}/block")]
+    public async Task<IActionResult> Unblock(string profileId)
     {
-        var block = await db.Blocks.FindAsync(UserId, userId);
+        var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == profileId);
+        if (profile == null) return Ok(); // preserve idempotency without revealing users
+
+        var block = await db.Blocks.FindAsync(UserId, profile.UserId);
         if (block == null) return Ok(); // idempotent
 
         db.Blocks.Remove(block);
@@ -172,16 +176,18 @@ public class ProfilesController(
     {
         var ids = await db.Blocks
             .Where(b => b.BlockerId == UserId)
-            .Select(b => b.BlockedId)
+            .Join(db.Profiles, block => block.BlockedId, profile => profile.UserId, (_, profile) => profile.Id)
             .ToListAsync();
 
         return Ok(ids);
     }
 
-    [HttpPost("{userId}/report")]
-    public async Task<IActionResult> ReportUser(string userId, ReportRequest request)
+    [HttpPost("{profileId}/report")]
+    public async Task<IActionResult> ReportUser(string profileId, ReportRequest request)
     {
-        if (userId == UserId) return BadRequest("You cannot report yourself.");
+        var profile = await db.Profiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == profileId);
+        if (profile == null) return NotFound();
+        if (profile.UserId == UserId) return BadRequest("You cannot report yourself.");
 
         if (!Enum.TryParse<ReportReason>(request.Reason, ignoreCase: true, out var reason))
             return BadRequest($"Invalid reason. Valid values: {string.Join(", ", Enum.GetNames<ReportReason>())}");
@@ -189,7 +195,7 @@ public class ProfilesController(
         db.Reports.Add(new Report
         {
             ReporterId = UserId,
-            ReportedId = userId,
+            ReportedId = profile.UserId,
             Reason = reason,
             Details = request.Details,
         });

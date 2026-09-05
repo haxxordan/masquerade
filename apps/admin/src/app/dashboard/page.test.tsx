@@ -17,6 +17,7 @@ const { adminApiMock } = vi.hoisted(() => ({
     getReports: vi.fn(),
     getUserDetail: vi.fn(),
     reviewReport: vi.fn(),
+    logout: vi.fn(),
   },
 }));
 
@@ -128,6 +129,26 @@ describe('DashboardPage smoke tests', () => {
     adminApiMock.getReports.mockResolvedValue(reportsFixture);
     adminApiMock.getUserDetail.mockResolvedValue(userDetailFixture);
     adminApiMock.reviewReport.mockResolvedValue(undefined);
+  });
+
+  it('waits for server logout before leaving the dashboard', async () => {
+    let finishLogout!: () => void;
+    adminApiMock.logout.mockImplementationOnce(() => new Promise<void>(resolve => { finishLogout = resolve; }));
+    render(<DashboardPage />);
+    await screen.findByText('Conversation funnel');
+    await userEvent.click(screen.getByRole('button', { name: /log out|sign out|logout/i }));
+    expect(mockReplace).not.toHaveBeenCalled();
+    finishLogout();
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/'));
+  });
+
+  it('shows failed logout instead of pretending the session ended', async () => {
+    adminApiMock.logout.mockRejectedValueOnce(new Error('offline'));
+    render(<DashboardPage />);
+    await screen.findByText('Conversation funnel');
+    await userEvent.click(screen.getByRole('button', { name: /log out|sign out|logout/i }));
+    expect(await screen.findByText('Sign out failed. Please try again.')).toBeInTheDocument();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it('renders engagement cards with nudges acted metrics', async () => {

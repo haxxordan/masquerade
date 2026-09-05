@@ -6,7 +6,7 @@ import { useAuthStore } from '@dating/store';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setMobileSession = useAuthStore((s) => s.setMobileSession);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -15,8 +15,8 @@ export default function LoginScreen() {
     setLoading(true);
     setError('');
     try {
-      const auth = await authApi.login(form);
-      setAuth(auth);
+      const auth = await authApi.mobileLogin(form);
+      setMobileSession(auth);
       router.replace('/(tabs)/browse');
     } catch (err: unknown) {
       const status = (err as { response?: { status?: number } })?.response?.status;

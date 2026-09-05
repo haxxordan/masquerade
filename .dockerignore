@@ -7,3 +7,8 @@
 **/*.tsbuildinfo
 **/.turbo
 **/.git
+**/bin/
+**/obj/
+**/appsettings.Development.json
+**/.codex
+**/.agents

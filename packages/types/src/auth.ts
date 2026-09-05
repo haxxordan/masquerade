@@ -8,8 +8,13 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  userId: string;
+export interface BrowserSessionResponse {
   email: string;
+}
+
+export interface MobileAuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  email: string;
+  accessExpiresAt: string;
 }

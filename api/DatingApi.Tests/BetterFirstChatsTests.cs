@@ -115,7 +115,7 @@ public class BetterFirstChatsTests
         Assert.NotNull(firstNudge);
         Assert.Null(secondNudge);
         Assert.Equal(MessageKind.Nudge, firstNudge.Message.Kind);
-        Assert.Equal("u1", firstNudge.Message.SenderId);
+        Assert.True(firstNudge.Message.IsMine);
         Assert.False(firstNudge.State.CanNudge);
         Assert.Equal(2, await db.Messages.CountAsync(x => x.MatchId == match.Id));
     }
@@ -256,6 +256,7 @@ public class BetterFirstChatsTests
             hub: null!,
             new SmartOpenersService(db),
             new ConversationNudgeService(db),
+            new RelationshipVisibilityService(db),
             Options.Create(featureFlags));
 
         controller.ControllerContext = new ControllerContext

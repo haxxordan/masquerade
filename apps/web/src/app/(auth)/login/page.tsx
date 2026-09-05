@@ -8,15 +8,15 @@ createApiClient(process.env.NEXT_PUBLIC_API_URL!);
 
 export default function LoginPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setBrowserSession = useAuthStore((s) => s.setBrowserSession);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const auth = await authApi.login(form);
-      setAuth(auth);
+      const session = await authApi.login(form);
+      setBrowserSession(session);
       router.push('/browse');
     } catch {
       setError('Invalid email or password');

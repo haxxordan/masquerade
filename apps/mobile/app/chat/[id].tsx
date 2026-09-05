@@ -47,7 +47,6 @@ export default function ChatScreen() {
   const { id: matchId } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const userId = useAuthStore(s => s.userId);
   const {
     matches, messages, setMessages, addMessage,
     markRead, typingByMatchId, applyReadReceipt, setActiveMatch,
@@ -73,7 +72,7 @@ export default function ChatScreen() {
   // The last message I sent that has a readAt (for read receipt display)
   const lastReadMessage = [...currentMessages]
     .reverse()
-    .find(m => m.senderId === userId && m.readAt);
+    .find(m => m.isMine && m.readAt);
 
   // ── Track active match for unread suppression ─────────────────────────────────
   useEffect(() => {
@@ -206,7 +205,7 @@ export default function ChatScreen() {
   };
 
   const renderMessage = useCallback(({ item: msg }: { item: Message }) => {
-    const isMe = msg.senderId === userId;
+    const isMe = msg.isMine;
     const showSeen = isMe && msg.id === lastReadMessage?.id && !!msg.readAt;
     return (
       <View>
@@ -220,7 +219,7 @@ export default function ChatScreen() {
         )}
       </View>
     );
-  }, [userId, lastReadMessage]);
+  }, [lastReadMessage]);
 
   return (
     <KeyboardAvoidingView

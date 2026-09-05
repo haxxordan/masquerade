@@ -17,8 +17,6 @@ public enum ConversationStatus
 
 public record MatchDto(
     string Id,
-    string User1Id,
-    string User2Id,
     string Status,
     DateTime CreatedAt,
     ProfileDto? OtherProfile = null,
@@ -35,7 +33,7 @@ public record MatchDto(
 public record MessageDto(
     string Id,
     string MatchId,
-    string SenderId,
+    bool IsMine,
     string Content,
     DateTime SentAt,
     MessageKind Kind = MessageKind.Text,

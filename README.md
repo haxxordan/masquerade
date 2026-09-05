@@ -2,7 +2,7 @@
 
 ## Stack
 - **Web**: Next.js 16 (App Router) + Tailwind CSS
-- **Mobile**: Expo SDK 52 + React Native + NativeWind
+- **Mobile**: Expo SDK 54 + React Native + NativeWind
 - **Shared**: TypeScript types, API client, Zustand store
 - **Backend**: .NET 10 Web API + EF Core + PostgreSQL + SignalR
 
@@ -10,7 +10,7 @@
 - Node 22+ and npm 11+
 - .NET 10 SDK
 - PostgreSQL running locally (or Docker)
-- Expo CLI: `npm install -g expo-cli`
+- Use the project-local Expo CLI through `npx expo`
 - EAS CLI (for mobile builds): `npm install -g eas-cli`
 
 ## Setup
@@ -23,12 +23,12 @@ npm install
 ### 2. Configure backend
 ```bash
 cd api/DatingApi
-# Edit appsettings.Development.json with your DB connection string
+# Configure ConnectionStrings:Default and Jwt:Key in appsettings.Development.json
+# Jwt:Key must be a high-entropy secret of at least 32 bytes.
 dotnet restore
-dotnet ef migrations add Init --output-dir Data/Migrations
 dotnet ef database update
 dotnet run
-# API runs at https://localhost:5001
+# Use the API URL printed by dotnet run in your frontend environment files.
 ```
 
 ### 3. Configure environment variables
@@ -45,11 +45,11 @@ Set these in api/DatingApi/appsettings.Development.json or via environment varia
 
 ```bash
 AdminAuth__Email=admin@example.com
-AdminAuth__Password=change-me
+AdminAuth__PasswordHash='paste-your-ASP.NET-Core-PasswordHasher-hash-here'
 AdminAuth__JwtKey=replace-with-a-long-random-secret
 ```
 
-The admin portal is intentionally separate from regular app-user auth. It uses its own login endpoint and JWT scheme.
+The admin portal uses its own login endpoint, JWT scheme, and secure HttpOnly cookies. Plaintext admin passwords are unsupported. See [security deployment notes](docs/security-deployment.md) before deploying, including browser cookie routing and pending admin MFA.
 
 ### 4. Run dev servers
 ```bash

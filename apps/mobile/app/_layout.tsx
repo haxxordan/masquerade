@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { createApiClient, setAuthToken } from '@dating/api-client';
+import { authApi } from '@dating/api-client';
 import { useAuthStore } from '@dating/store';
 import { useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
@@ -17,7 +18,9 @@ const SECURE_KEY = 'masquerade-auth';
 
 function AuthGuard() {
     const token = useAuthStore(s => s.token);
-    const userId = useAuthStore(s => s.userId);
+    const refreshToken = useAuthStore(s => s.refreshToken);
+    const accessExpiresAt = useAuthStore(s => s.accessExpiresAt);
+    const setMobileSession = useAuthStore(s => s.setMobileSession);
     const segments = useSegments();
     const router = useRouter();
     const [hydrated, setHydrated] = useState(false);
@@ -32,7 +35,8 @@ function AuthGuard() {
                         setAuthToken(parsed.token);
                         useAuthStore.setState({
                             token: parsed.token,
-                            userId: parsed.userId ?? null,
+                            refreshToken: parsed.refreshToken ?? null,
+                            accessExpiresAt: parsed.accessExpiresAt ?? null,
                             profile: null,
                             isAuthenticated: true,
                         });
@@ -47,11 +51,20 @@ function AuthGuard() {
     useEffect(() => {
         if (!hydrated) return;
         if (token) {
-            SecureStore.setItemAsync(SECURE_KEY, JSON.stringify({ token, userId })).catch(() => { });
+            SecureStore.setItemAsync(SECURE_KEY, JSON.stringify({ token, refreshToken, accessExpiresAt })).catch(() => { });
         } else {
             SecureStore.deleteItemAsync(SECURE_KEY).catch(() => { });
         }
-    }, [token, userId, hydrated]);
+    }, [token, refreshToken, accessExpiresAt, hydrated]);
+
+    useEffect(() => {
+        if (!token || !refreshToken || !accessExpiresAt) return;
+        const delay = Math.max(0, Date.parse(accessExpiresAt) - Date.now() - 60_000);
+        const timer = setTimeout(() => {
+            authApi.mobileRefresh(refreshToken).then(setMobileSession).catch(() => useAuthStore.getState().logout());
+        }, delay);
+        return () => clearTimeout(timer);
+    }, [token, refreshToken, accessExpiresAt, setMobileSession]);
 
     // Route guard (only after hydration to avoid login flash)
     useEffect(() => {

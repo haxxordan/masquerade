@@ -2,7 +2,6 @@ namespace DatingApi.DTOs;
 
 public sealed record AdminLoginRequest(string Email, string Password);
 
-public sealed record AdminAuthResponse(string Token, string Email);
 
 public sealed record AdminDashboardSummaryDto(
     int TotalUsers,

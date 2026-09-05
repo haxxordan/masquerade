@@ -22,3 +22,8 @@ api/DatingApi/appsettings.Development.json
 **/.expo-export-test/
 **/web-build/
 .codex
+
+# Local environment overrides can contain deployment secrets.
+.env.local
+.env.*.local
+*.tsbuildinfo

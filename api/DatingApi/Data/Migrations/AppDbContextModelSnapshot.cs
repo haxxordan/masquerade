@@ -86,6 +86,31 @@ namespace DatingApi.Data.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("DatingApi.Domain.AuthSession", b =>
+                {
+                    b.Property<string>("Id").HasColumnType("text");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("ExpiresAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("RefreshTokenHash").IsRequired().HasColumnType("text");
+                    b.Property<string>("ReplacedBySessionId").HasColumnType("text");
+                    b.Property<DateTime?>("RevokedAt").HasColumnType("timestamp with time zone");
+                    b.Property<string>("TokenId").IsRequired().HasColumnType("text");
+                    b.Property<string>("UserId").IsRequired().HasColumnType("text");
+                    b.HasKey("Id");
+                    b.HasIndex("RefreshTokenHash").IsUnique();
+                    b.HasIndex("TokenId").IsUnique();
+                    b.ToTable("AuthSessions", (string)null);
+                });
+
+            modelBuilder.Entity("DatingApi.Domain.AuthenticationThrottle", b =>
+                {
+                    b.Property<string>("Id").HasColumnType("text");
+                    b.Property<int>("Attempts").HasColumnType("integer");
+                    b.Property<DateTime>("WindowStartedAt").HasColumnType("timestamp with time zone");
+                    b.HasKey("Id");
+                    b.ToTable("AuthenticationThrottles", (string)null);
+                });
+
             modelBuilder.Entity("DatingApi.Domain.Block", b =>
                 {
                     b.Property<string>("BlockerId")
@@ -174,7 +199,13 @@ namespace DatingApi.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Matches", (string)null);
+                    b.HasIndex("User1Id", "User2Id")
+                        .IsUnique();
+
+                    b.ToTable("Matches", (string)null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Matches_DistinctUsers", "\"User1Id\" <> \"User2Id\"");
+                        });
                 });
 
             modelBuilder.Entity("DatingApi.Domain.Message", b =>

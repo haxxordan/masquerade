@@ -18,8 +18,6 @@ export interface Like {
 
 export interface Match {
   id: string;
-  user1Id: string;
-  user2Id: string;
   status: MatchStatus;
   createdAt: string;
   otherProfile?: import('./profile').Profile;
@@ -36,7 +34,7 @@ export interface Match {
 export interface Message {
   id: string;
   matchId: string;
-  senderId: string;
+  isMine: boolean;
   content: string;
   sentAt: string;
   kind?: MessageKind;

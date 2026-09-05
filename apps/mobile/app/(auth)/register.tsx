@@ -6,7 +6,6 @@ import { useAuthStore } from '@dating/store';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const setAuth = useAuthStore(s => s.setAuth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -16,9 +15,8 @@ export default function RegisterScreen() {
     setLoading(true);
     setError('');
     try {
-      const auth = await authApi.register(form);
-      setAuth(auth);
-      router.replace('/onboarding');
+      await authApi.register(form);
+      router.replace('/(auth)/login');
     } catch (err: unknown) {
       const messages = (err as { response?: { data?: unknown } })?.response?.data;
       if (Array.isArray(messages)) {

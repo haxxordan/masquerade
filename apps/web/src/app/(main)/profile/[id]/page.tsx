@@ -219,9 +219,7 @@ export default function ProfilePage() {
       return;
     }
 
-    const existingMatch = matches.find(m =>
-      m.user1Id === profile.userId || m.user2Id === profile.userId
-    );
+    const existingMatch = matches.find(m => m.otherProfile?.id === profile.id);
 
     if (existingMatch) {
       setResolvedMatchId(existingMatch.id);
@@ -236,9 +234,7 @@ export default function ProfilePage() {
         const allMatches = await matchesApi.getMatches();
         if (cancelled) return;
 
-        const foundMatch = allMatches.find(m =>
-          m.user1Id === profile.userId || m.user2Id === profile.userId
-        );
+        const foundMatch = allMatches.find(m => m.otherProfile?.id === profile.id);
         setResolvedMatchId(foundMatch?.id ?? null);
       } catch (err) {
         if (!cancelled) console.error('Failed to resolve match id:', err);
@@ -277,9 +273,7 @@ export default function ProfilePage() {
 
     await matchesApi.unlike(profile.id);
 
-    const match = matches.find(m =>
-      m.user1Id === profile.userId || m.user2Id === profile.userId
-    );
+    const match = matches.find(m => m.otherProfile?.id === profile.id);
     if (match) removeMatch(match.id);
 
     setLiked(false);
@@ -288,12 +282,12 @@ export default function ProfilePage() {
   };
 
   const handleBlock = async () => {
-    await profilesApi.block(profile.userId);
+    await profilesApi.block(profile.id);
     setBlocked(true);
   };
 
   const handleSendReport = async () => {
-    await profilesApi.report(profile.userId, reportReason, reportDetails || undefined);
+    await profilesApi.report(profile.id, reportReason, reportDetails || undefined);
     setReportSent(true);
     setReportOpen(false);
   };

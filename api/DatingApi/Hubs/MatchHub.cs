@@ -1,4 +1,5 @@
 using DatingApi.Data;
+using DatingApi.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace DatingApi.Hubs;
 
 [Authorize]
-public class MatchHub(AppDbContext db) : Hub
+public class MatchHub(AppDbContext db, RelationshipVisibilityService visibility) : Hub
 {
     // Clients subscribe to their own UserId group via query param or JWT sub claim.
     // Real-time events: NewMatch, NewMessage, TypingStarted, TypingStopped
@@ -40,6 +41,7 @@ public class MatchHub(AppDbContext db) : Hub
             .FirstOrDefaultAsync();
 
         if (match == null) return null;
-        return match.User1Id == myId ? match.User2Id : match.User1Id;
+        var otherUserId = match.User1Id == myId ? match.User2Id : match.User1Id;
+        return await visibility.CanInteractAsync(myId, otherUserId) ? otherUserId : null;
     }
 }

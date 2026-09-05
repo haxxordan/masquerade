@@ -121,7 +121,7 @@ public class MatchingService(AppDbContext db, IOptions<FeatureFlagsOptions> feat
         HashSet<string> matchedUserIds,
         int? compatibilityScore = null,
         List<string>? compatibilityReasons = null) => new(
-    p.Id, p.UserId, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType, p.Gender, p.LookingFor,
+    p.Id, p.DisplayName, p.AnimalAvatarUrl, p.AnimalType, p.Gender, p.LookingFor,
     p.Tags.Where(t => t.Category == TagCategory.Music).Select(t => t.Value).ToList(),
     p.Tags.Where(t => t.Category == TagCategory.Hobby).Select(t => t.Value).ToList(),
     p.Faith, p.PoliticalLeaning,

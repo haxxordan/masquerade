@@ -22,15 +22,15 @@ export const profilesApi = {
   topPicks: (query: SuggestQuery) =>
     getClient().post<Profile[]>('/api/profiles/top-picks', JSON.stringify(query)),
 
-  block: (userId: string) =>
-    getClient().post<void>(`/api/profiles/${userId}/block`),
+  block: (profileId: string) =>
+    getClient().post<void>(`/api/profiles/${profileId}/block`),
 
-  unblock: (userId: string) =>
-    getClient().delete<void>(`/api/profiles/${userId}/block`),
+  unblock: (profileId: string) =>
+    getClient().delete<void>(`/api/profiles/${profileId}/block`),
 
   getBlocked: () =>
     getClient().get<string[]>('/api/profiles/blocked'),
 
-  report: (userId: string, reason: ReportReason, details?: string) =>
-    getClient().post<void>(`/api/profiles/${userId}/report`, JSON.stringify({ reason, details })),
+  report: (profileId: string, reason: ReportReason, details?: string) =>
+    getClient().post<void>(`/api/profiles/${profileId}/report`, JSON.stringify({ reason, details })),
 };

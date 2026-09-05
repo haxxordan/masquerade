@@ -1,0 +1,4 @@
+Contact: mailto:security@prophecytech.org
+Policy: https://masq.prophecytech.org/security
+Preferred-Languages: en
+Expires: 2027-09-01T00:00:00.000Z

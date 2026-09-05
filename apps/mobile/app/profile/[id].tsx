@@ -119,7 +119,7 @@ export default function ProfileScreen() {
                 style: 'destructive',
                 onPress: async () => {
                     try {
-                        await profilesApi.block(profile.userId);
+                        await profilesApi.block(profile.id);
                         setBlocked(true);
                     } catch { }
                 },
@@ -131,7 +131,7 @@ export default function ProfileScreen() {
         if (!reportReason) return;
         setReporting(true);
         try {
-            await profilesApi.report(profile.userId, reportReason, reportDetails || undefined);
+            await profilesApi.report(profile.id, reportReason, reportDetails || undefined);
             setReported(true);
             setShowReportPanel(false);
         } catch {

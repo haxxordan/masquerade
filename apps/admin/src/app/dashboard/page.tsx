@@ -266,9 +266,14 @@ export default function DashboardPage() {
     };
   }, [selectedUserId]);
 
-  function handleLogout() {
-    clearAdminSession();
-    router.replace('/');
+  async function handleLogout() {
+    try {
+      await adminApi.logout();
+      clearAdminSession();
+      router.replace('/');
+    } catch {
+      setError('Sign out failed. Please try again.');
+    }
   }
 
   return (

@@ -2,20 +2,17 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@dating/api-client';
-import { useAuthStore } from '@dating/store';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const auth = await authApi.register(form);
-      setAuth(auth);
-      router.push('/onboarding');
+      await authApi.register(form);
+      router.push('/login');
     } catch (err: any) {
       const messages = err?.response?.data;
       if (Array.isArray(messages)) {

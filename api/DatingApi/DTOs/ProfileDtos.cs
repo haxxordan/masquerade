@@ -46,7 +46,6 @@ public record ProfileLayoutDto
 
 public record ProfileDto(
     string Id,
-    string UserId,
     string DisplayName,
     string AnimalAvatarUrl,
     string AnimalType,

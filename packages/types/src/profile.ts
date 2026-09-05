@@ -14,7 +14,6 @@ export interface ProfileLayout {
 
 export interface Profile {
   id: string;
-  userId: string;
   displayName: string;
   animalAvatarUrl: string;       // Required; must be an animal image
   animalType: string;            // e.g. "red panda", "axolotl"

@@ -3,6 +3,7 @@ import path from 'path'
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
   transpilePackages: ['@dating/types', '@dating/api-client', '@dating/store'],
   images: {
     remotePatterns: [

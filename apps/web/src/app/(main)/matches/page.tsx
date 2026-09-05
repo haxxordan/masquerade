@@ -109,7 +109,6 @@ function isFeatureDisabled(error: unknown) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function MatchesContent() {
-    const { userId } = useAuthStore();
     const {
         matches, activeMatchId,
         setMatches, setActiveMatch,
@@ -213,7 +212,7 @@ function MatchesContent() {
     const activeMessageCount = activeMessages.length;
     const lastMyMessageWithReceipt = [...activeMessages]
         .reverse()
-        .find((message) => message.senderId === userId && message.readAt);
+        .find((message) => message.isMine && message.readAt);
 
     const refreshConversationState = async (matchId: string) => {
         try {
@@ -318,8 +317,7 @@ function MatchesContent() {
     const handleMarkRead = async (matchId: string) => {
         try {
             const receipt = await matchesApi.markRead(matchId);
-            if (!userId) return;
-            useMatchStore.getState().applyReadReceipt(matchId, userId, receipt.readAt);
+            useMatchStore.getState().applyReadReceipt(matchId, receipt.readAt);
             await refreshMatches();
         } catch (error) {
             console.error('Failed to mark messages as read:', error);
@@ -410,7 +408,7 @@ function MatchesContent() {
                                 </div>
                             ) : (
                                 activeMessages.map(msg => {
-                                    const isMe = msg.senderId === userId;
+                                    const isMe = msg.isMine;
                                     const showSeen = isMe && msg.id === lastMyMessageWithReceipt?.id && !!msg.readAt;
 
                                     return (

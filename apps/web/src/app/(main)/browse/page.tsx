@@ -107,9 +107,7 @@ export default function BrowsePage() {
 
     // Sync match store if they were matched
     const unlikedProfile = profiles.find(p => p.id === profileId);
-    const match = matches.find(m =>
-      m.user1Id === unlikedProfile?.userId || m.user2Id === unlikedProfile?.userId
-    );
+    const match = matches.find(m => m.otherProfile?.id === unlikedProfile?.id);
     if (match) removeMatch(match.id);
   };
 

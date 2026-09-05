@@ -119,7 +119,7 @@ public class ConversationNudgeService(AppDbContext db)
         var dto = new MessageDto(
             message.Id,
             message.MatchId,
-            message.SenderId,
+            IsMine: true,
             message.Content,
             message.SentAt,
             message.Kind,

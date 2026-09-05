@@ -4,7 +4,6 @@ export interface AdminLoginRequest {
 }
 
 export interface AdminAuthResponse {
-  token: string;
   email: string;
 }
 

@@ -10,7 +10,7 @@ import type {
   AdminUserDetail,
   AdminUserListItem,
 } from '@dating/types';
-import { clearAdminSession, getAdminToken } from './adminAuth';
+import { clearAdminSession } from './adminAuth';
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5001';
 
@@ -18,14 +18,15 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
 
-  const token = getAdminToken();
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(init.method ?? 'GET') && typeof document !== 'undefined') {
+    const csrf = document.cookie.split('; ').find(cookie => cookie.startsWith('__Host-masq-admin-csrf='))?.split('=').slice(1).join('=');
+    if (csrf) headers.set('X-CSRF-Token', decodeURIComponent(csrf));
   }
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     headers,
+    credentials: 'include',
   });
 
   if (response.status === 401) {
@@ -58,6 +59,10 @@ export const adminApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  logout: () => request<void>('/api/admin/auth/logout', { method: 'POST' }),
+
+  session: () => request<AdminAuthResponse>('/api/admin/auth/session'),
 
   getSummary: () => request<AdminDashboardSummary>('/api/admin/summary'),
 
